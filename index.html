@@ -224,6 +224,21 @@
       <div class="text-gray-500 font-mono" id="currentJalaliDate"></div>
     </div>
 
+    <!-- انتخاب پرسنل برای ویرایش شیفت (فقط ادمین) -->
+    <div id="adminStaffSelector" class="hidden bg-white p-4 rounded-xl shadow-sm border border-blue-100">
+      <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs">
+        <div class="flex items-center gap-2 flex-wrap">
+          <span class="font-bold text-blue-900">👤 در حال مشاهده / ثبت شیفت برای:</span>
+          <select id="viewingUserSelect" onchange="onViewingUserChange()" class="px-3 py-1.5 border rounded-lg bg-white font-bold text-badesaba-main min-w-[180px]">
+          </select>
+        </div>
+        <button onclick="reloadUsersFromStorage()" class="bg-blue-600 hover:bg-blue-700 text-white text-[11px] font-bold py-1.5 px-3 rounded-lg flex items-center gap-1">
+          🔄 بروزرسانی لیست پرسنل
+        </button>
+      </div>
+      <p class="text-[10px] text-gray-500 mt-2">برای ثبت شیفت پیشنهادی به‌جای همکاران، شخص مورد نظر را از لیست بالا انتخاب کنید. اگر همکار جدید ثبت‌نام کرده، روی «بروزرسانی» کلیک کنید.</p>
+    </div>
+
     <!-- هدر تقویم -->
     <div class="bg-badesaba-main text-white p-4 rounded-2xl shadow-lg flex items-center justify-between">
       <div class="flex items-center gap-3">
@@ -570,14 +585,17 @@ function isUserActiveInMonth(user, year, month) {
   if (user.role === 'admin') return true;
   const start = parseJalaliDate(user.startDate);
   const end = parseJalaliDate(user.endDate);
+  // بدون تاریخ شروع/پایان = همیشه فعال
   if (start === null && end === null) return true;
-  const currentMonthVal = year * 10000 + month * 100 + 1;
-  if (start !== null && currentMonthVal < start) return false;
-  if (end !== null) {
-    const lastDay = getDaysInJalaliMonth(year, month);
-    const endOfMonthVal = year * 10000 + month * 100 + lastDay;
-    if (endOfMonthVal < end) return false;
-  }
+
+  const startOfMonth = year * 10000 + month * 100 + 1;
+  const lastDay = getDaysInJalaliMonth(year, month);
+  const endOfMonth = year * 10000 + month * 100 + lastDay;
+
+  // اگر ماه قبل از شروع به کار تمام شده باشد → غیرفعال
+  if (start !== null && endOfMonth < start) return false;
+  // اگر ماه بعد از پایان کار شروع شده باشد → غیرفعال
+  if (end !== null && startOfMonth > end) return false;
   return true;
 }
 
@@ -611,8 +629,71 @@ let state = {
   holidays: JSON.parse(localStorage.getItem('shift_holidays')) || { ...DEFAULT_HOLIDAYS },
   currentYear: getTodayJalali().jy,
   currentMonth: getTodayJalali().jm,
-  selectedDayForModal: null
+  selectedDayForModal: null,
+  viewingUserId: null  // برای ادمین: کد ملی شخصی که در حال ویرایش شیفت اوست
 };
+
+// شناسه کاربری که الان شیفت‌هایش نمایش/ویرایش می‌شود
+function getActiveUserId() {
+  if (state.currentUser && state.currentUser.role === 'admin' && state.viewingUserId) {
+    return state.viewingUserId;
+  }
+  return state.currentUser ? state.currentUser.nationalId : null;
+}
+
+// بارگذاری مجدد لیست کاربران از localStorage (برای دیدن ثبت‌نام‌های جدید)
+function reloadUsersFromStorage() {
+  try {
+    const stored = JSON.parse(localStorage.getItem('shift_users'));
+    if (Array.isArray(stored) && stored.length > 0) {
+      state.users = stored;
+    }
+  } catch (e) {}
+  // اگر viewingUserId دیگر معتبر نیست، به خود ادمین برگرد
+  if (state.viewingUserId && !state.users.find(u => u.nationalId === state.viewingUserId)) {
+    state.viewingUserId = state.currentUser ? state.currentUser.nationalId : null;
+  }
+  populateViewingUserSelect();
+  renderCalendar();
+  renderStaffList();
+  if (document.getElementById('staffManagerModal') && !document.getElementById('staffManagerModal').classList.contains('hidden')) {
+    renderStaffManagerList();
+  }
+  alert('لیست پرسنل بروزرسانی شد. تعداد کل: ' + state.users.length);
+}
+
+function populateViewingUserSelect() {
+  const sel = document.getElementById('viewingUserSelect');
+  if (!sel || !state.currentUser || state.currentUser.role !== 'admin') return;
+
+  // همه کاربران (حتی بدون start/end) را نشان بده
+  const sorted = [
+    ...state.users.filter(u => u.role === 'admin'),
+    ...state.users.filter(u => u.role !== 'admin')
+  ];
+
+  let html = '';
+  sorted.forEach(u => {
+    const label = `${u.firstName} ${u.lastName}` + (u.role === 'admin' ? ' (مدیر)' : '') + ` — ${u.nationalId}`;
+    const selected = (state.viewingUserId === u.nationalId) ? 'selected' : '';
+    html += `<option value="${u.nationalId}" ${selected}>${label}</option>`;
+  });
+  sel.innerHTML = html || '<option value="">— هیچ پرسنلی نیست —</option>';
+
+  // اگر هنوز کسی انتخاب نشده، خود ادمین را انتخاب کن
+  if (!state.viewingUserId && state.currentUser) {
+    state.viewingUserId = state.currentUser.nationalId;
+    sel.value = state.viewingUserId;
+  }
+}
+
+function onViewingUserChange() {
+  const sel = document.getElementById('viewingUserSelect');
+  if (!sel) return;
+  state.viewingUserId = sel.value || null;
+  renderCalendar();
+  renderStaffList();
+}
 
 const monthNames = ['فروردین','اردیبهشت','خرداد','تیر','مرداد','شهریور','مهر','آبان','آذر','دی','بهمن','اسفند'];
 
@@ -748,13 +829,23 @@ function initUI() {
     if (state.currentUser.role === 'admin') {
       document.getElementById('adminPanel').classList.remove('hidden');
       document.getElementById('staffSection').classList.remove('hidden');
+      document.getElementById('adminStaffSelector').classList.remove('hidden');
       document.getElementById('periodFromInput').value = state.settings.periodFrom || '';
       document.getElementById('periodToInput').value = state.settings.periodTo || '';
       document.getElementById('submissionStartInput').value = state.settings.submissionStart || '';
       document.getElementById('submissionDaysInput').value = state.settings.submissionDays || 2;
+      // بارگذاری مجدد کاربران تا ثبت‌نام‌های جدید دیده شوند
+      try {
+        const stored = JSON.parse(localStorage.getItem('shift_users'));
+        if (Array.isArray(stored)) state.users = stored;
+      } catch (e) {}
+      if (!state.viewingUserId) state.viewingUserId = state.currentUser.nationalId;
+      populateViewingUserSelect();
     } else {
       document.getElementById('adminPanel').classList.add('hidden');
       document.getElementById('staffSection').classList.add('hidden');
+      document.getElementById('adminStaffSelector').classList.add('hidden');
+      state.viewingUserId = state.currentUser.nationalId;
     }
     renderCalendar();
     renderStaffList();
@@ -882,7 +973,8 @@ function renderCalendar() {
   }
 
   for (let day = 1; day <= daysInMonth; day++) {
-    const key = `${state.currentUser.nationalId}_${state.currentYear}_${state.currentMonth}_${day}`;
+    const activeId = getActiveUserId();
+    const key = `${activeId}_${state.currentYear}_${state.currentMonth}_${day}`;
     const shiftCode = state.shifts[key] || '';
     const shiftInfo = SHIFT_MAP[shiftCode];
     const dayOfWeek = getDayOfWeek(state.currentYear, state.currentMonth, day);
@@ -946,29 +1038,42 @@ function renderStaffList() {
   const container = document.getElementById('staffList');
   if (!container) return;
 
-  const filteredUsers = state.users.filter(u => isUserActiveInMonth(u, state.currentYear, state.currentMonth));
+  // همه کاربران را نشان بده (حتی کسانی که startDate/endDate ندارند)
+  // فقط کسانی که صراحتاً خارج از بازه هستند را فیلتر کن
+  const filteredUsers = state.users.filter(u => {
+    if (u.role === 'admin') return true;
+    return isUserActiveInMonth(u, state.currentYear, state.currentMonth);
+  });
+  // اگر فیلتر کسی را حذف کرد ولی کاربر وجود دارد، باز هم همه را نشان بده تا ثبت‌نام‌های جدید گم نشوند
+  const listToShow = filteredUsers.length > 0 ? filteredUsers : state.users;
+
   const sortedUsers = [
-    ...filteredUsers.filter(u => u.role === 'admin'),
-    ...filteredUsers.filter(u => u.role !== 'admin')
+    ...listToShow.filter(u => u.role === 'admin'),
+    ...listToShow.filter(u => u.role !== 'admin')
   ];
 
   if (sortedUsers.length === 0) {
-    container.innerHTML = '<p class="text-xs text-gray-400 text-center py-4">هیچ پرسنل فعالی در این ماه وجود ندارد.</p>';
+    container.innerHTML = '<p class="text-xs text-gray-400 text-center py-4">هیچ پرسنلی ثبت نشده است. از «مدیریت پرسنل» یا ثبت‌نام همکاران استفاده کنید.</p>';
     return;
   }
 
   let html = '';
   sortedUsers.forEach(user => {
     const isAdmin = user.role === 'admin';
+    const isViewing = state.viewingUserId === user.nationalId;
     const adminBadge = isAdmin ? '<span class="text-[10px] bg-badesaba-gold text-badesaba-header px-2 py-0.5 rounded-full font-bold mr-2">مدیر</span>' : '';
+    const viewingBadge = isViewing ? '<span class="text-[10px] bg-blue-600 text-white px-2 py-0.5 rounded-full font-bold mr-2">در حال ویرایش</span>' : '';
     html += `
-      <div class="border rounded-xl p-4 ${isAdmin ? 'border-badesaba-gold bg-amber-50/30' : 'border-gray-100 bg-white'} shadow-sm">
-        <div class="flex items-center justify-between mb-2">
-          <div class="flex items-center gap-2">
+      <div class="border rounded-xl p-4 ${isViewing ? 'border-blue-400 bg-blue-50/40 ring-2 ring-blue-200' : (isAdmin ? 'border-badesaba-gold bg-amber-50/30' : 'border-gray-100 bg-white')} shadow-sm">
+        <div class="flex items-center justify-between mb-2 flex-wrap gap-2">
+          <div class="flex items-center gap-2 flex-wrap">
             <span class="font-black text-sm text-badesaba-main">${user.firstName} ${user.lastName}</span>
-            ${adminBadge}
+            ${adminBadge}${viewingBadge}
           </div>
-          <span class="text-[10px] text-gray-400 font-mono">${user.nationalId}</span>
+          <div class="flex items-center gap-2">
+            <span class="text-[10px] text-gray-400 font-mono">${user.nationalId}</span>
+            ${!isViewing ? `<button onclick="selectStaffForEdit('${user.nationalId}')" class="bg-blue-600 hover:bg-blue-700 text-white text-[10px] font-bold px-2 py-1 rounded">ویرایش شیفت‌ها</button>` : ''}
+          </div>
         </div>
         <div class="grid grid-cols-2 md:grid-cols-4 gap-2 text-[11px] text-gray-600 mb-3">
           <div><span class="font-bold">جنسیت:</span> ${user.gender || '-'}</div>
@@ -995,9 +1100,24 @@ function renderStaffList() {
   container.innerHTML = html;
 }
 
+function selectStaffForEdit(nid) {
+  state.viewingUserId = nid;
+  const sel = document.getElementById('viewingUserSelect');
+  if (sel) sel.value = nid;
+  renderCalendar();
+  renderStaffList();
+  // اسکرول به تقویم
+  document.getElementById('calendarMonthTitle')?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+}
+
 function openModal(day) {
   state.selectedDayForModal = day;
-  document.getElementById('modalDateTitle').textContent = `شیفت پیشنهادی - ${day} ${monthNames[state.currentMonth - 1]}`;
+  let who = '';
+  if (state.currentUser && state.currentUser.role === 'admin' && state.viewingUserId) {
+    const u = state.users.find(x => x.nationalId === state.viewingUserId);
+    if (u) who = ` — ${u.firstName} ${u.lastName}`;
+  }
+  document.getElementById('modalDateTitle').textContent = `شیفت پیشنهادی - ${day} ${monthNames[state.currentMonth - 1]}${who}`;
   document.getElementById('shiftModal').classList.remove('hidden');
 }
 
@@ -1007,7 +1127,9 @@ function closeModal() {
 
 function selectShift(code) {
   if (!state.selectedDayForModal) return;
-  const key = `${state.currentUser.nationalId}_${state.currentYear}_${state.currentMonth}_${state.selectedDayForModal}`;
+  const activeId = getActiveUserId();
+  if (!activeId) return;
+  const key = `${activeId}_${state.currentYear}_${state.currentMonth}_${state.selectedDayForModal}`;
   if (code) state.shifts[key] = code;
   else delete state.shifts[key];
   syncStorage();
