@@ -1,0 +1,1944 @@
+<!DOCTYPE html>
+<html lang="fa" dir="rtl">
+<head>
+  <meta charset="UTF-8">
+  <meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Operating RoomNik</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://cdn.jsdelivr.net/npm/xlsx-js-style@1.2.0/dist/xlsx.bundle.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js"></script>
+  <link rel="preconnect" href="https://cdn.jsdelivr.net">
+  <link href="https://cdn.jsdelivr.net/gh/rastikerdar/vazirmatn@v33.003/Vazirmatn-font-face.css" rel="stylesheet" type="text/css" />
+  <!-- Firebase SDK -->
+  <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-functions-compat.js"></script>
+<script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          fontFamily: { sans: ['Vazirmatn', 'sans-serif'] },
+          colors: {
+            badesaba: {
+              main: '#800020', hover: '#600018', gold: '#D4AF37',
+              bg: '#FDFBF7', card: '#FFFFFF', header: '#5A0016'
+            }
+          }
+        }
+      }
+    }
+  </script>
+  <style>
+    html { direction: rtl; }
+    body { direction: rtl; unicode-bidi: plaintext; font-family: 'Vazirmatn', Tahoma, Arial, sans-serif; background-color: #FDFBF7; }
+    input, textarea, select, button { font-family: inherit; }
+    :lang(fa), [dir="rtl"] { font-variant-ligatures: contextual; font-feature-settings: "calt" 1, "liga" 1; }
+    .grid-calendar { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); }
+    @media (max-width: 640px) { .grid-calendar > div { min-height: 76px; } .grid-calendar .text\[11px\] { font-size: 12px; padding: 7px 4px; } }
+    .holiday { background-color: #fef2f2 !important; }
+    .holiday .day-number { color: #dc2626 !important; }
+    #loadingOverlay { position: fixed; inset: 0; background: rgba(253,251,247,0.9); z-index: 9999; display: flex; align-items: center; justify-content: center; }
+  </style>
+</head>
+<body class="text-gray-800 antialiased min-h-screen flex flex-col">
+  <!-- Modal گزارش‌گیری حرفه‌ای -->
+<div id="reportsManagerModal" class="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 hidden flex items-center justify-center p-4">
+ <div class="bg-white rounded-2xl shadow-2xl max-w-5xl w-full p-6 space-y-5 max-h-[92vh] overflow-y-auto">
+  <div class="flex justify-between items-center border-b pb-3"><div><h3 class="font-black text-badesaba-main text-lg">📈 گزارش‌گیری حرفه‌ای مدیر ارشد</h3><p class="text-xs text-gray-500 mt-1">با انتخاب هر ترکیب از فیلترها، گزارش جزئی شیفت‌ها و خلاصه آماری دریافت کنید.</p></div><button onclick="closeReportsManager()" class="text-gray-400 font-bold text-xl">✕</button></div>
+  <div class="grid grid-cols-2 md:grid-cols-4 gap-3 bg-indigo-50 border border-indigo-100 rounded-xl p-4 text-xs">
+   <div><label class="block font-bold mb-1">سال</label><input id="reportYear" type="number" class="w-full px-2 py-2 border rounded-lg" value="1405"></div>
+   <div><label class="block font-bold mb-1">ماه</label><select id="reportMonth" class="w-full px-2 py-2 border rounded-lg bg-white"></select></div>
+   <div><label class="block font-bold mb-1">بخش</label><select id="reportDepartment" class="w-full px-2 py-2 border rounded-lg bg-white"></select></div>
+   <div><label class="block font-bold mb-1">سمت / رشته</label><input id="reportPosition" placeholder="مثلاً پرستار" class="w-full px-2 py-2 border rounded-lg"></div>
+   <div><label class="block font-bold mb-1">نوع استخدام</label><select id="reportEmployment" class="w-full px-2 py-2 border rounded-lg bg-white"><option value="">همه</option><option>رسمی</option><option>پیمانی</option><option>شرکتی</option><option>قراردادی</option><option>طرحی</option><option>ساعتی</option><option>پیام‌آور</option><option>تبصره ۳</option><option>تبصره ۴</option></select></div>
+   <div><label class="block font-bold mb-1">نقش</label><select id="reportRole" class="w-full px-2 py-2 border rounded-lg bg-white"><option value="">همه</option><option value="employee">عضو</option><option value="admin">ادمین ارشد</option><option value="department_manager">مدیر بخش</option><option value="senior_manager">مدیر ارشد</option></select></div>
+   <div><label class="block font-bold mb-1">کد شیفت</label><select id="reportShift" class="w-full px-2 py-2 border rounded-lg bg-white"><option value="">همه</option><option value="M">M - صبح</option><option value="E">E - عصر</option><option value="N">N - شب</option><option value="MN">MN</option><option value="EN">EN</option><option value="MEN">MEN</option><option value="O">O - آف</option><option value="H">H - مرخصی</option><option value="S">S - استعلاجی</option><option value="M1">M1 - ماموریت</option></select></div>
+   <div><label class="block font-bold mb-1">نمایش</label><select id="reportMode" class="w-full px-2 py-2 border rounded-lg bg-white"><option value="detail">جزئیات هر روز</option><option value="summary">خلاصه هر عضو</option><option value="department">خلاصه هر بخش</option></select></div>
+  </div>
+  <div class="flex flex-wrap gap-2"><button onclick="previewReport()" class="bg-slate-700 text-white px-4 py-2 rounded-lg text-xs font-bold">پیش‌نمایش گزارش</button><button onclick="exportFilteredReport()" class="bg-emerald-700 text-white px-4 py-2 rounded-lg text-xs font-bold">دانلود خروجی اکسل فیلترشده</button><button onclick="exportAllShiftReports()" class="bg-badesaba-main text-white px-4 py-2 rounded-lg text-xs font-bold">خروجی کامل همه شیفت‌ها</button></div>
+  <div id="reportCharts" class="grid grid-cols-1 lg:grid-cols-2 gap-4 mt-4">
+    <div class="bg-white border rounded-xl p-4"><h4 class="font-black text-sm text-badesaba-main mb-3">توزیع کد شیفت‌ها</h4><div class="relative h-64"><canvas id="shiftDistributionChart"></canvas></div></div>
+    <div class="bg-white border rounded-xl p-4"><h4 class="font-black text-sm text-badesaba-main mb-3">مقایسه شیفت‌های بخش‌ها</h4><div class="relative h-64"><canvas id="departmentShiftChart"></canvas></div></div>
+  </div>
+  <div class="mt-6 border-t-2 border-dashed border-indigo-200 pt-5"><div class="flex items-center justify-between mb-3"><div><h4 class="font-black text-badesaba-main">👥 گزارش جامع پرسنل و منابع انسانی</h4><p class="text-[11px] text-gray-500">جست‌وجو، بررسی محل خدمت، رشته، نوع استخدام و پراکندگی نیروها</p></div></div><div class="grid grid-cols-2 md:grid-cols-4 gap-3 bg-emerald-50 border border-emerald-100 rounded-xl p-4 text-xs"><div><label class="block font-bold mb-1">نام یا کد ملی</label><input id="personSearch" class="w-full px-2 py-2 border rounded-lg" placeholder="جست‌وجوی پرسنل"></div><div><label class="block font-bold mb-1">بخش</label><select id="personDepartment" class="w-full px-2 py-2 border rounded-lg bg-white"></select></div><div><label class="block font-bold mb-1">رشته / سمت</label><input id="personPosition" class="w-full px-2 py-2 border rounded-lg" placeholder="پرستار، ماما، هوشبر..."></div><div><label class="block font-bold mb-1">نوع استخدام</label><select id="personEmployment" class="w-full px-2 py-2 border rounded-lg bg-white"><option value="">همه</option><option>رسمی</option><option>پیمانی</option><option>شرکتی</option><option>قراردادی</option><option>طرحی</option><option>ساعتی</option><option>پیام‌آور</option><option>تبصره ۳</option><option>تبصره ۴</option></select></div><div><label class="block font-bold mb-1">جنسیت</label><select id="personGender" class="w-full px-2 py-2 border rounded-lg bg-white"><option value="">همه</option><option value="آقای">مرد</option><option value="خانم">زن</option></select></div><div><label class="block font-bold mb-1">مقطع</label><select id="personEducation" class="w-full px-2 py-2 border rounded-lg bg-white"><option value="">همه</option><option>دیپلم</option><option>کاردانی</option><option>کارشناسی</option><option>کارشناسی ارشد</option><option>دکتری</option><option>سایر</option></select></div><div><label class="block font-bold mb-1">وضعیت زمانی</label><select id="personStatus" class="w-full px-2 py-2 border rounded-lg bg-white"><option value="all">همه پرسنل</option><option value="new">اضافه‌شده در بازه</option><option value="ended">پایان‌کار در بازه</option><option value="near_end">نزدیک به پایان کار</option></select></div><div><label class="block font-bold mb-1">از تاریخ (شمسی)</label><input id="personDateFrom" placeholder="1405/01/01" class="w-full px-2 py-2 border rounded-lg"></div><div><label class="block font-bold mb-1">تا تاریخ (شمسی)</label><input id="personDateTo" placeholder="1405/12/29" class="w-full px-2 py-2 border rounded-lg"></div><div><label class="block font-bold mb-1">نزدیک به پایان (روز)</label><input id="personNearDays" type="number" min="1" max="365" value="90" class="w-full px-2 py-2 border rounded-lg"> </div><div><label class="block font-bold mb-1">نوع گزارش</label><select id="personReportMode" class="w-full px-2 py-2 border rounded-lg bg-white"><option value="directory">فهرست کامل پرسنل</option><option value="department">پراکندگی بر اساس بخش</option><option value="position">پراکندگی بر اساس سمت</option><option value="field">پراکندگی بر اساس رشته تحصیلی</option><option value="employment">پراکندگی بر اساس نوع استخدام</option></select></div><div class="col-span-2 md:col-span-3 flex items-end gap-2"><button onclick="previewPersonnelReport()" class="bg-emerald-700 text-white px-4 py-2 rounded-lg text-xs font-bold">نمایش گزارش پرسنل</button><button onclick="exportPersonnelReport()" class="bg-slate-700 text-white px-4 py-2 rounded-lg text-xs font-bold">خروجی Excel پرسنل</button></div></div><div id="personCharts" class="grid grid-cols-1 lg:grid-cols-2 gap-4 mt-4"><div class="bg-white border rounded-xl p-4"><h5 class="font-black text-sm text-badesaba-main mb-3">پراکندگی پرسنل بر اساس نوع استخدام</h5><div class="relative h-64"><canvas id="personEmploymentChart"></canvas></div></div><div class="bg-white border rounded-xl p-4"><h5 class="font-black text-sm text-badesaba-main mb-3">پراکندگی پرسنل بر اساس بخش</h5><div class="relative h-64"><canvas id="personDepartmentChart"></canvas></div></div><div class="bg-white border rounded-xl p-4"><h5 class="font-black text-sm text-badesaba-main mb-3">پراکندگی جنسیتی</h5><div class="relative h-64"><canvas id="personGenderChart"></canvas></div></div><div class="bg-white border rounded-xl p-4"><h5 class="font-black text-sm text-badesaba-main mb-3">پراکندگی مقطع تحصیلی</h5><div class="relative h-64"><canvas id="personEducationChart"></canvas></div></div></div><div id="personPreview" class="overflow-x-auto mt-4"></div></div>
+  <div id="reportPreview" class="overflow-x-auto"></div>
+ </div>
+</div>
+<!-- Modal ساختار سازمانی -->
+<div id="orgManagerModal" class="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 hidden flex items-center justify-center p-4">
+  <div class="bg-white rounded-2xl shadow-2xl max-w-6xl w-full p-6 space-y-5 max-h-[92vh] overflow-y-auto">
+    <div class="flex items-center justify-between border-b pb-3"><div><h3 class="font-black text-badesaba-main text-lg">🏢 مدیریت ساختار سازمانی و بخش‌ها</h3><p class="text-xs text-gray-500 mt-1">مدیر ارشد بر همه بخش‌ها نظارت دارد؛ مدیر هر بخش اعضای همان بخش را می‌بیند.</p></div><button onclick="closeOrgManager()" class="text-gray-400 hover:text-gray-700 font-bold text-lg">✕</button></div>
+    <div class="grid grid-cols-1 lg:grid-cols-3 gap-4"><div class="lg:col-span-2 bg-slate-50 rounded-xl p-4 border"><div class="flex items-center justify-between mb-3"><h4 class="font-black text-sm text-slate-800">بخش‌های سازمان</h4><button onclick="openDepartmentForm()" class="bg-badesaba-main text-white px-3 py-1.5 rounded-lg text-xs font-bold">＋ افزودن بخش</button></div><div id="departmentCards" class="grid grid-cols-1 md:grid-cols-2 gap-3"></div></div><div class="bg-amber-50 rounded-xl p-4 border border-amber-200"><h4 class="font-black text-sm text-amber-900 mb-3">سطوح دسترسی</h4><div class="space-y-2 text-xs"><div class="bg-white p-3 rounded-lg"><b>ادمین ارشد</b><br><span class="text-gray-500">مدیریت کامل</span></div><div class="bg-white p-3 rounded-lg"><b>مدیر ارشد</b><br><span class="text-gray-500">مشاهده و گزارش همه بخش‌ها</span></div><div class="bg-white p-3 rounded-lg"><b>مدیر بخش</b><br><span class="text-gray-500">مشاهده اعضای بخش خودش</span></div></div></div></div>
+    <div class="border-t pt-4"><div class="flex flex-wrap items-center justify-between gap-2 mb-3"><h4 class="font-black text-sm text-slate-800">اعضای سازمان و محل خدمت</h4><select id="orgDepartmentFilter" onchange="renderOrgMembers()" class="px-3 py-1.5 border rounded-lg bg-white text-xs font-bold"></select></div><div id="orgMembersList" class="space-y-2"></div></div>
+  </div>
+</div>
+<div id="departmentFormModal" class="fixed inset-0 bg-black/50 backdrop-blur-sm z-[60] hidden flex items-center justify-center p-4"><div class="bg-white rounded-2xl shadow-2xl max-w-md w-full p-5"><div class="flex justify-between items-center mb-4"><h3 id="departmentFormTitle" class="font-black text-badesaba-main">افزودن بخش</h3><button onclick="closeDepartmentForm()">✕</button></div><form onsubmit="saveDepartment(event)" class="space-y-3"><input type="hidden" id="departmentEditId"><div><label class="block text-xs font-bold mb-1">نام بخش</label><input id="departmentName" required class="w-full px-3 py-2 border rounded-lg" placeholder="مثلاً ICU"></div><div><label class="block text-xs font-bold mb-1">توضیح کوتاه</label><input id="departmentDescription" class="w-full px-3 py-2 border rounded-lg"></div><div><label class="block text-xs font-bold mb-1">مدیر بخش</label><select id="departmentManager" class="w-full px-3 py-2 border rounded-lg bg-white"></select></div><div class="flex gap-2"><button type="submit" class="flex-1 bg-badesaba-main text-white py-2 rounded-lg font-bold">ذخیره بخش</button><button type="button" onclick="closeDepartmentForm()" class="px-4 border rounded-lg">انصراف</button></div></form></div></div>
+<!-- Modal تغییر شناسه و رمز ادمین -->
+	<div id="accountSecurityModal" class="fixed inset-0 bg-black/60 backdrop-blur-sm z-[70] hidden flex items-center justify-center p-4"><div class="bg-white rounded-2xl shadow-2xl max-w-md w-full p-6 space-y-4"><h3 class="font-black text-badesaba-main text-lg text-center">🔐 تغییر اطلاعات ورود ادمین</h3><p id="accountSecurityHint" class="text-xs text-gray-600 leading-6 bg-amber-50 border border-amber-200 rounded-lg p-3">برای امنیت، شناسه و رمز پیش‌فرض باید تغییر کند. پس از ذخیره، ورود با اطلاعات قبلی ممکن نخواهد بود.</p><form onsubmit="saveAccountCredentials(event)" class="space-y-3"><div><label class="block text-xs font-bold mb-1">کد ملی / نام کاربری جدید</label><input id="newAdminNationalId" maxlength="10" required class="w-full px-3 py-2 border rounded-lg text-center font-mono" placeholder="کد ملی ۱۰ رقمی"></div><div><label class="block text-xs font-bold mb-1">رمز عبور فعلی</label><input id="currentAdminPassword" type="password" required class="w-full px-3 py-2 border rounded-lg"></div><div><label class="block text-xs font-bold mb-1">رمز عبور جدید</label><input id="newAdminPassword" type="password" minlength="6" required class="w-full px-3 py-2 border rounded-lg"></div><div><label class="block text-xs font-bold mb-1">تکرار رمز جدید</label><input id="confirmAdminPassword" type="password" minlength="6" required class="w-full px-3 py-2 border rounded-lg"></div><button type="submit" class="w-full bg-badesaba-main text-white py-2.5 rounded-lg font-bold">ذخیره و فعال‌سازی اطلاعات جدید</button><button type="button" id="accountCancelBtn" onclick="closeAccountSecurity()" class="w-full bg-gray-100 text-gray-700 py-2 rounded-lg font-bold">انصراف</button></form></div></div>
+	<!-- Modal تغییر اجباری رمز برای حساب‌های قدیمی مهاجرت‌داده‌شده -->
+	<div id="forceChangePasswordModal" class="fixed inset-0 bg-black/60 backdrop-blur-sm z-[80] hidden flex items-center justify-center p-4" dir="rtl">
+	  <div class="bg-white rounded-2xl shadow-2xl max-w-md w-full p-6 space-y-4">
+	    <div class="text-center">
+	      <h3 class="font-black text-badesaba-main text-lg">🔐 تغییر اجباری رمز عبور</h3>
+	      <p class="text-xs text-gray-600 leading-6 mt-2">برای امنیت حساب کاربری، لطفاً یک رمز عبور جدید برای خودتان تعیین کنید. رمز جدید باید حداقل ۶ کاراکتر باشد.</p>
+	    </div>
+	    <div id="forceChangePasswordError" class="hidden p-3 rounded-lg text-xs font-semibold bg-red-100 text-red-700"></div>
+	    <form onsubmit="saveForceChangePassword(event)" class="space-y-3">
+	      <div><label class="block text-xs font-bold mb-1">رمز عبور جدید</label><input id="forceNewPassword" type="password" minlength="6" required autocomplete="new-password" class="w-full px-3 py-2 border rounded-lg"></div>
+	      <div><label class="block text-xs font-bold mb-1">تکرار رمز جدید</label><input id="forceConfirmPassword" type="password" minlength="6" required autocomplete="new-password" class="w-full px-3 py-2 border rounded-lg"></div>
+	      <button type="submit" class="w-full bg-badesaba-main text-white py-2.5 rounded-lg font-bold">ذخیره رمز جدید و ورود به سیستم</button>
+	    </form>
+	  </div>
+	</div>
+	
+	
+	<!-- لودینگ اولیه -->
+<div id="loadingOverlay">
+  <div class="text-center">
+    <div class="text-4xl mb-3">🏥</div>
+    <p class="font-bold text-badesaba-main">در حال اتصال به سرور...</p>
+    <p class="text-xs text-gray-500 mt-1">لطفاً صبر کنید</p>
+  </div>
+</div>
+
+<header class="bg-badesaba-main text-white shadow-lg sticky top-0 z-50">
+  <div class="max-w-7xl mx-auto px-4 py-3 flex items-center justify-between">
+    <div class="flex items-center space-x-3 space-x-reverse">
+      <div class="w-10 h-10 rounded-full bg-badesaba-gold text-badesaba-header font-bold flex items-center justify-center text-xl shadow">🏥</div>
+      <div>
+        <h1 class="font-black text-lg md:text-xl tracking-tight">Operating RoomNik</h1>
+        <p class="text-xs text-red-200">سامانه هماهنگی و برنامه ریزی شیفت‌های کاری</p>
+      </div>
+    </div>
+    <div id="userHeaderInfo" class="hidden flex items-center gap-4">
+      <div class="text-left hidden sm:block">
+        <div id="headerUserName" class="font-bold text-sm text-yellow-300"></div>
+        <div id="headerUserRole" class="text-xs text-red-200"></div>
+      </div>
+      <button onclick="openAccountSecurity(false)" class="bg-white/10 hover:bg-white/20 text-xs text-white py-2 px-3 rounded-lg border border-white/20 transition">امنیت حساب</button>
+      <button onclick="logout()" class="bg-red-900/50 hover:bg-red-900 text-xs text-white py-2 px-3 rounded-lg border border-red-400/30 transition">خروج</button>
+    </div>
+  </div>
+</header>
+
+<main class="flex-grow max-w-7xl w-full mx-auto p-4 md:p-6">
+
+  <div id="authView" class="max-w-md mx-auto my-8">
+    <div class="bg-white rounded-2xl shadow-xl border border-amber-900/10 overflow-hidden">
+      <div class="flex border-b text-center font-bold text-sm">
+        <button id="tabLoginBtn" onclick="switchAuthTab('login')" class="flex-1 py-3 text-badesaba-main border-b-2 border-badesaba-main bg-amber-50/50">ورود</button>
+        <button id="tabRegisterBtn" onclick="switchAuthTab('register')" class="flex-1 py-3 text-gray-500 hover:text-badesaba-main">ثبت‌نام همکار جدید</button>
+        <button id="tabForgotBtn" onclick="switchAuthTab('forgot')" class="flex-1 py-3 text-gray-500 hover:text-badesaba-main">بازیابی رمز</button>
+      </div>
+      <div class="p-6">
+        <div id="authAlert" class="hidden mb-4 p-3 rounded-lg text-xs font-semibold"></div>
+
+        <form id="loginForm" onsubmit="handleLogin(event)" class="space-y-4">
+          <div>
+            <label class="block text-xs font-bold text-gray-700 mb-1">کد ملی (۱۰ رقم):</label>
+            <input type="text" id="loginNationalId" maxlength="10" placeholder="مثال: 0012345678" required class="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-badesaba-main outline-none text-center tracking-widest font-mono">
+          </div>
+          <div>
+            <label class="block text-xs font-bold text-gray-700 mb-1">رمز عبور:</label>
+            <input type="password" id="loginPassword" placeholder="******" required class="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-badesaba-main outline-none">
+          </div>
+          <button type="submit" class="w-full bg-badesaba-main hover:bg-badesaba-hover text-white py-2.5 rounded-lg font-bold shadow transition">ورود به سیستم</button>
+        </form>
+
+        <form id="registerForm" onsubmit="handleRegister(event)" class="space-y-3 hidden">
+          <div>
+            <label class="block text-xs font-bold text-gray-700 mb-1">کد ملی (نام کاربری):</label>
+            <input type="text" id="regNationalId" maxlength="10" placeholder="۱۰ رقم کد ملی" required class="w-full px-3 py-1.5 border rounded-lg focus:ring-2 focus:ring-badesaba-main outline-none text-center font-mono">
+          </div>
+          <div class="grid grid-cols-2 gap-2">
+            <div>
+              <label class="block text-xs font-bold text-gray-700 mb-1">نام:</label>
+              <input type="text" id="regFirstName" placeholder="علی" required class="w-full px-3 py-1.5 border rounded-lg">
+            </div>
+            <div>
+              <label class="block text-xs font-bold text-gray-700 mb-1">نام خانوادگی:</label>
+              <input type="text" id="regLastName" placeholder="رضایی" required class="w-full px-3 py-1.5 border rounded-lg">
+            </div>
+          </div>
+          <div class="grid grid-cols-2 gap-2">
+            <div>
+              <label class="block text-xs font-bold text-gray-700 mb-1">جنسیت:</label>
+              <select id="regGender" class="w-full px-3 py-1.5 border rounded-lg bg-white">
+                <option value="آقای">آقای</option>
+                <option value="خانم">خانم</option>
+              </select>
+            </div>
+            <div>
+              <label class="block text-xs font-bold text-gray-700 mb-1">سنوات خدمت (سال):</label>
+              <input type="number" id="regServiceYears" min="0" max="50" placeholder="مثال: 5" required class="w-full px-3 py-1.5 border rounded-lg text-center">
+            </div>
+          </div>
+          <div class="grid grid-cols-2 gap-2">
+            <div>
+              <label class="block text-xs font-bold text-gray-700 mb-1">تاریخ تولد (شمسی):</label>
+              <input type="text" id="regBirthDate" placeholder="1370/05/12" required class="w-full px-3 py-1.5 border rounded-lg text-center font-mono">
+            </div>
+            <div>
+              <label class="block text-xs font-bold text-gray-700 mb-1">سمت شغلی:</label>
+              <input type="text" id="regPosition" placeholder="پرستار / تکنسین" required class="w-full px-3 py-1.5 border rounded-lg">
+            </div>
+          </div>
+          <div class="grid grid-cols-2 gap-2"><div><label class="block text-xs font-bold text-gray-700 mb-1">رشته تحصیلی:</label><input type="text" id="regFieldOfStudy" placeholder="پرستاری، مامایی، هوشبری..." required class="w-full px-3 py-1.5 border rounded-lg"></div><div><label class="block text-xs font-bold text-gray-700 mb-1">مقطع تحصیلی:</label><select id="regEducationLevel" class="w-full px-3 py-1.5 border rounded-lg bg-white"><option>دیپلم</option><option>کاردانی</option><option>کارشناسی</option><option>کارشناسی ارشد</option><option>دکتری</option><option>سایر</option></select></div></div>
+          <div class="grid grid-cols-2 gap-2">
+            <div>
+              <label class="block text-xs font-bold text-gray-700 mb-1">شماره تلفن همراه:</label>
+              <div class="flex items-center border rounded-lg overflow-hidden">
+                <span class="bg-gray-100 px-2 py-1.5 text-xs font-bold text-gray-600 border-l">+98</span>
+                <input type="text" id="regPhone" maxlength="10" placeholder="9121234567" required class="w-full px-2 py-1.5 outline-none text-center font-mono text-xs">
+              </div>
+            </div>
+            <div>
+              <label class="block text-xs font-bold text-gray-700 mb-1">نوع استخدام:</label>
+              <select id="regEmploymentType" class="w-full px-3 py-1.5 border rounded-lg bg-white">
+                <option value="رسمی">رسمی</option>
+                <option value="پیمانی">پیمانی</option>
+                <option value="شرکتی">شرکتی</option>
+                <option value="قراردادی">قراردادی</option>
+                <option value="طرحی">طرحی</option>
+                <option value="ساعتی">ساعتی</option>
+                <option value="پیام‌آور">پیام‌آور</option>
+                <option value="تبصره ۳">تبصره ۳</option>
+                <option value="تبصره ۴">تبصره ۴</option>
+              </select>
+            </div>
+          </div>
+          <div>
+            <label class="block text-xs font-bold text-gray-700 mb-1">ایمیل بازیابی:</label>
+            <input type="email" id="regEmail" required placeholder="name@example.com" class="w-full px-3 py-1.5 border rounded-lg text-left" dir="ltr">
+          </div>
+          <div>
+            <label class="block text-xs font-bold text-gray-700 mb-1">رمز عبور:</label>
+            <input type="password" id="regPassword" required minlength="6" placeholder="حداقل ۶ کاراکتر" class="w-full px-3 py-1.5 border rounded-lg">
+          </div>
+          <button type="submit" class="w-full bg-badesaba-gold hover:bg-yellow-600 text-badesaba-header py-2.5 rounded-lg font-bold shadow transition mt-2">ثبت‌نام و ایجاد حساب</button>
+        </form>
+
+        <form id="forgotForm" onsubmit="handleForgotPassword(event)" class="space-y-3 hidden"><div class="bg-blue-50 border border-blue-200 rounded-lg p-4 text-xs text-blue-900 leading-relaxed"><p class="font-bold mb-2">🔐 بازیابی رمز عبور</p><p>برای بازیابی رمز عبور، لطفاً با <b>مدیر سیستم (ادمین)</b> تماس بگیرید.</p><p class="mt-2">مدیر می‌تواند از بخش «مدیریت پرسنل» رمز عبور جدیدی برای شما تعیین کند.</p><p class="mt-2 text-gray-600">مدیر سیستم: <b>آقای ارجمندی</b></p><p class="mt-1 text-gray-600">شماره تماس مدیر: <a href="tel:09154313531" dir="ltr" class="font-mono font-bold text-blue-700 hover:underline">09154313531</a></p></div><button type="submit" class="w-full bg-badesaba-main hover:bg-badesaba-hover text-white py-2.5 rounded-lg font-bold shadow transition">متوجه شدم</button></form>
+      </div>
+    </div>
+    <p class="text-center text-[10px] text-gray-400 mt-4">🌐 نسخه آنلاین — داده‌ها روی سرور ذخیره می‌شوند و از همه دستگاه‌ها قابل دسترسی هستند</p>
+  </div>
+
+  <div id="dashboardView" class="hidden space-y-6">
+
+    <div id="adminPanel" class="hidden bg-white p-5 rounded-2xl shadow-md border-r-4 border-badesaba-main space-y-4">
+      <div class="flex flex-col md:flex-row md:items-center justify-between gap-4">
+        <div>
+          <h2 class="text-base font-black text-badesaba-main flex items-center gap-2"><span>⚙️</span> پنل مدیریت و تنظیمات ادمین</h2>
+          <p class="text-xs text-gray-500 mt-0.5">مدیریت بازه ثبت شیفت‌ها، پرسنل، تعطیلات و دریافت خروجی اکسل</p>
+        </div>
+        <div class="flex flex-wrap items-center gap-2">
+          <button onclick="exportToExcel()" class="bg-emerald-700 hover:bg-emerald-800 text-white font-bold text-xs py-2 px-4 rounded-xl flex items-center gap-2 shadow transition"><span>📊</span> خروجی اکسل ماه جاری</button>
+          <button onclick="openStaffManager()" class="bg-blue-700 hover:bg-blue-800 text-white font-bold text-xs py-2 px-4 rounded-xl flex items-center gap-2 shadow transition"><span>👥</span> مدیریت پرسنل</button>
+          <button onclick="openHolidayManager()" class="bg-purple-700 hover:bg-purple-800 text-white font-bold text-xs py-2 px-4 rounded-xl flex items-center gap-2 shadow transition"><span>🗓️</span> مدیریت تعطیلات</button>
+          <button onclick="openOrgManager()" class="bg-rose-700 hover:bg-rose-800 text-white font-bold text-xs py-2 px-4 rounded-xl flex items-center gap-2 shadow transition"><span>🏢</span> ساختار سازمانی</button>
+          <button onclick="openReportsManager()" class="bg-indigo-700 hover:bg-indigo-800 text-white font-bold text-xs py-2 px-4 rounded-xl flex items-center gap-2 shadow transition"><span>📈</span> گزارش‌های حرفه‌ای</button>
+        </div>
+      </div>
+      <hr class="border-gray-100">
+      <div class="bg-amber-50/60 p-4 rounded-xl border border-amber-200/60 space-y-3 text-xs">
+        <div class="flex flex-wrap items-center gap-2">
+          <span class="font-bold text-amber-900">وضعیت فعلی:</span>
+          <span id="periodStatusBadge" class="px-2.5 py-0.5 rounded-full text-[11px] font-bold"></span>
+        </div>
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div class="bg-white/70 p-3 rounded-lg border border-amber-100 space-y-2">
+            <p class="font-bold text-amber-900 text-[11px]">📅 بازه شیفت‌های پیشنهادی (تاریخ کامل شمسی)</p>
+            <div class="flex flex-wrap items-center gap-2">
+              <span>از تاریخ:</span>
+              <input type="text" id="periodFromInput" placeholder="1405/06/01" class="w-28 px-2 py-1.5 border rounded text-center font-mono font-bold">
+              <span>تا تاریخ:</span>
+              <input type="text" id="periodToInput" placeholder="1405/06/31" class="w-28 px-2 py-1.5 border rounded text-center font-mono font-bold">
+            </div>
+            <p class="text-[10px] text-gray-500">فقط در این بازه تاریخی می‌توان شیفت پیشنهادی ثبت کرد.</p>
+          </div>
+          <div class="bg-white/70 p-3 rounded-lg border border-amber-100 space-y-2">
+            <p class="font-bold text-amber-900 text-[11px]">⏳ مهلت ثبت پیشنهاد (از تاریخ شروع به مدت N روز)</p>
+            <div class="flex flex-wrap items-center gap-2">
+              <span>از تاریخ:</span>
+              <input type="text" id="submissionStartInput" placeholder="1405/05/28" class="w-28 px-2 py-1.5 border rounded text-center font-mono font-bold">
+              <span>به مدت:</span>
+              <input type="number" id="submissionDaysInput" min="1" max="30" class="w-14 px-2 py-1.5 border rounded text-center font-bold">
+              <span>روز</span>
+            </div>
+            <p class="text-[10px] text-gray-500">از تاریخ شروع مهلت، به مدت مشخص‌شده فرصت ثبت پیشنهاد وجود دارد.</p>
+          </div>
+        </div>
+        <div class="flex justify-end">
+          <button onclick="savePeriodSettings()" class="bg-badesaba-main text-white px-4 py-1.5 rounded-lg font-bold hover:bg-badesaba-hover transition text-xs">ذخیره تنظیمات بازه و مهلت</button>
+        </div>
+      </div>
+    </div>
+
+    <div id="employeeStatusNotice" class="bg-white p-4 rounded-xl shadow-sm border border-gray-100 flex items-center justify-between text-xs">
+      <div class="flex items-center gap-2">
+        <span class="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-pulse"></span>
+        <span id="employeeNoticeText" class="font-bold text-gray-700"></span>
+      </div>
+      <div class="text-gray-500 font-mono" id="currentJalaliDate"></div>
+    </div>
+
+    <div id="adminStaffSelector" class="hidden bg-white p-4 rounded-xl shadow-sm border border-blue-100">
+      <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs">
+        <div class="flex items-center gap-2 flex-wrap">
+          <span class="font-bold text-blue-900">👤 در حال مشاهده / ثبت شیفت برای:</span>
+          <select id="viewingUserSelect" onchange="onViewingUserChange()" class="px-3 py-1.5 border rounded-lg bg-white font-bold text-badesaba-main min-w-[180px]"></select>
+        </div>
+        <button onclick="reloadAllData()" class="bg-blue-600 hover:bg-blue-700 text-white text-[11px] font-bold py-1.5 px-3 rounded-lg flex items-center gap-1">
+          🔄 بروزرسانی از سرور
+        </button>
+
+      </div>
+      <p class="text-[10px] text-gray-500 mt-2">برای ثبت شیفت به‌جای همکاران، شخص را انتخاب کنید. ثبت‌نام‌های جدید از همه گوشی‌ها اینجا دیده می‌شوند.</p>
+    </div>
+
+    <div class="bg-badesaba-main text-white p-4 rounded-2xl shadow-lg flex items-center justify-between">
+      <div class="flex items-center gap-3">
+        <button aria-label="ماه قبل" onclick="changeMonth(-1)" class="p-2 hover:bg-white/10 rounded-lg transition">‹ ماه قبل</button>
+        <h2 id="calendarMonthTitle" class="text-lg md:text-xl font-black text-yellow-300">شهریور ۱۴۰۵</h2>
+        <button aria-label="ماه بعد" onclick="changeMonth(1)" class="p-2 hover:bg-white/10 rounded-lg transition">ماه بعد ›</button>
+      </div>
+      <div class="text-xs bg-white/10 px-3 py-1.5 rounded-lg border border-white/20">راهنما: جهت تغییر شیفت روی روز کلیک کنید</div>
+    </div>
+
+    <div class="bg-white rounded-2xl shadow-lg border border-amber-900/10 overflow-hidden">
+      <div class="grid-calendar bg-amber-50 border-b border-amber-100 text-center font-bold text-xs py-2.5 text-amber-900">
+        <div>شنبه</div><div>یکشنبه</div><div>دوشنبه</div><div>سه‌شنبه</div><div>چهارشنبه</div><div>پنج‌شنبه</div><div class="text-red-600">جمعه</div>
+      </div>
+      <div id="calendarDaysGrid" class="grid-calendar divide-x divide-x-reverse divide-y divide-amber-100/60 text-xs"></div>
+    </div>
+
+    <div class="bg-white p-4 rounded-xl shadow-sm border flex flex-wrap gap-3 text-xs font-bold text-gray-700 justify-center">
+      <div class="flex items-center gap-1.5"><span class="px-1.5 py-0.5 rounded bg-sky-100 border border-sky-400 font-mono">M</span> صبح</div>
+      <div class="flex items-center gap-1.5"><span class="px-1.5 py-0.5 rounded bg-amber-100 border border-amber-400 font-mono">E</span> عصر</div>
+      <div class="flex items-center gap-1.5"><span class="px-1.5 py-0.5 rounded bg-indigo-100 border border-indigo-400 font-mono">N</span> شب</div>
+      <div class="flex items-center gap-1.5"><span class="px-1.5 py-0.5 rounded bg-cyan-100 border border-cyan-400 font-mono">MN</span> صبح شب</div>
+      <div class="flex items-center gap-1.5"><span class="px-1.5 py-0.5 rounded bg-orange-100 border border-orange-400 font-mono">EN</span> عصر شب</div>
+      <div class="flex items-center gap-1.5"><span class="px-1.5 py-0.5 rounded bg-purple-100 border border-purple-400 font-mono">MEN</span> صبح عصر شب</div>
+      <div class="flex items-center gap-1.5"><span class="px-1.5 py-0.5 rounded bg-rose-100 border border-rose-400 font-mono">O</span> آف</div>
+      <div class="flex items-center gap-1.5"><span class="px-1.5 py-0.5 rounded bg-emerald-100 border border-emerald-400 font-mono">H</span> مرخصی استحقاقی</div>
+      <div class="flex items-center gap-1.5"><span class="px-1.5 py-0.5 rounded bg-teal-100 border border-teal-400 font-mono">S</span> مرخصی استعلاجی</div>
+      <div class="flex items-center gap-1.5"><span class="px-1.5 py-0.5 rounded bg-blue-100 border border-blue-400 font-mono">M1</span> ماموریت</div>
+    </div>
+
+
+<div id="comprehensiveExportModal" class="fixed inset-0 bg-black/50 backdrop-blur-sm z-[80] hidden flex items-center justify-center p-4">
+  <div class="bg-white rounded-2xl shadow-2xl max-w-md w-full p-5 space-y-4" dir="rtl">
+    <div class="flex items-center justify-between border-b pb-3">
+      <div><h3 class="font-black text-badesaba-main text-lg">📊 خروجی اکسل جامع</h3><p class="text-xs text-gray-500 mt-1">بخش موردنظر را برای خروجی ماه جاری انتخاب کنید.</p></div>
+      <button type="button" onclick="closeComprehensiveExportModal()" class="text-gray-400 hover:text-gray-700 font-bold text-xl">✕</button>
+    </div>
+    <div><label for="comprehensiveExportDepartment" class="block text-xs font-bold text-gray-700 mb-1">بخش</label><select id="comprehensiveExportDepartment" class="w-full px-3 py-2.5 border border-slate-300 rounded-xl bg-white text-sm"><option value="">همه بخش‌ها</option></select></div>
+    <div class="flex gap-2 pt-1"><button type="button" onclick="confirmComprehensiveExport()" class="flex-1 bg-sky-700 hover:bg-sky-800 text-white px-4 py-2.5 rounded-xl text-xs font-bold">ساخت خروجی</button><button type="button" onclick="closeComprehensiveExportModal()" class="px-4 border border-slate-300 rounded-xl text-xs font-bold text-slate-600">انصراف</button></div>
+  </div>
+</div>
+    <div id="staffSection" class="hidden bg-white p-5 rounded-2xl shadow-md border border-gray-100">
+      <div class="flex flex-wrap items-center justify-between gap-2 mb-4"><h2 class="text-base font-black text-badesaba-main flex items-center gap-2"><span>👥</span> لیست پرسنل و شیفت‌های پیشنهادی</h2><div class="flex flex-wrap items-center gap-2"><span id="seniorManagerStatus" class="text-xs"></span><button type="button" onclick="toggleShiftSubmissionStatus()" class="bg-emerald-700 hover:bg-emerald-800 text-white px-3 py-1.5 rounded-lg text-[11px] font-bold">وضعیت ثبت شیفت</button><button id="comprehensiveMonthExportBtn" type="button" onclick="openComprehensiveExportModal()" class="hidden bg-sky-700 hover:bg-sky-800 text-white px-3 py-1.5 rounded-lg text-[11px] font-bold">📊 خروجی اکسل جامع ماه جاری</button></div></div>
+      <div id="shiftSubmissionStatus" class="hidden mb-4"></div>
+      <div class="bg-slate-50 border rounded-xl p-3 mb-4 space-y-2 text-xs">
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-2">
+          <div class="relative"><input id="staffListSearch" oninput="renderStaffList()" placeholder="جست‌وجو: نام، کد ملی، سمت، رشته" class="w-full px-3 py-2 pl-10 border rounded-lg bg-white"><button type="button" onclick="clearStaffSearch()" class="absolute left-2 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-700 text-xs font-bold px-1.5 py-0.5 rounded" title="پاک کردن جست‌وجو">✕</button></div>
+          <select id="staffDepartmentFilter" onchange="renderStaffList()" class="px-3 py-2 border rounded-lg bg-white"><option value="">همه بخش‌ها</option></select>
+        </div>
+        <div class="bg-white border border-slate-200 rounded-xl p-3 text-xs">
+          <div class="flex flex-wrap items-center justify-between gap-2 mb-2"><span class="font-black text-slate-700">مرتب‌سازی چندمعیاره (اولویت = ترتیب انتخاب):</span><div class="flex gap-1"><button type="button" onclick="clearStaffSort()" class="px-2 py-1 rounded bg-white border text-[10px] font-bold">پاک کردن</button><button type="button" onclick="renderStaffList()" class="px-2 py-1 rounded bg-badesaba-main text-white text-[10px] font-bold">اعمال</button></div></div>
+          <div class="flex flex-wrap gap-3" id="staffSortChecks">
+            <label class="inline-flex items-center gap-1.5 cursor-pointer"><input type="checkbox" value="name" class="staff-sort-cb accent-badesaba-main" onchange="onStaffSortChange(this)"> نام (الفبا)</label>
+            <label class="inline-flex items-center gap-1.5 cursor-pointer"><input type="checkbox" value="field" class="staff-sort-cb accent-badesaba-main" onchange="onStaffSortChange(this)"> رشته تحصیلی</label>
+            <label class="inline-flex items-center gap-1.5 cursor-pointer"><input type="checkbox" value="position" class="staff-sort-cb accent-badesaba-main" onchange="onStaffSortChange(this)"> سمت</label>
+            <label class="inline-flex items-center gap-1.5 cursor-pointer"><input type="checkbox" value="employment" class="staff-sort-cb accent-badesaba-main" onchange="onStaffSortChange(this)"> نوع استخدام</label>
+            <label class="inline-flex items-center gap-1.5 cursor-pointer"><input type="checkbox" value="department" class="staff-sort-cb accent-badesaba-main" onchange="onStaffSortChange(this)"> بخش</label>
+            <label class="inline-flex items-center gap-1.5 cursor-pointer"><input type="checkbox" value="serviceYears" class="staff-sort-cb accent-badesaba-main" onchange="onStaffSortChange(this)"> سنوات خدمت</label>
+            <label class="inline-flex items-center gap-1.5 cursor-pointer"><input type="checkbox" value="education" class="staff-sort-cb accent-badesaba-main" onchange="onStaffSortChange(this)"> مقطع تحصیلی</label>
+            <label class="inline-flex items-center gap-1.5 cursor-pointer"><input type="checkbox" value="lastEdit" class="staff-sort-cb accent-badesaba-main" onchange="onStaffSortChange(this)"> آخرین ویرایش شیفت</label>
+          </div><p id="staffSortOrderHint" class="text-[10px] text-gray-500 mt-2">هیچ معیاری انتخاب نشده — پیش‌فرض: نام الفبایی</p>
+        </div>
+      </div><div id="staffList" class="space-y-4"></div>
+    </div>
+  </div>
+</main>
+
+<!-- Modal پروفایل ادمین -->
+<div id="adminProfileModal" class="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 hidden flex items-center justify-center p-4">
+  <div class="bg-white rounded-2xl shadow-2xl max-w-md w-full p-6 space-y-4">
+    <h3 class="font-black text-badesaba-main text-lg text-center">تکمیل اطلاعات مدیر سیستم</h3>
+    <p class="text-xs text-gray-500 text-center">لطفاً اطلاعات خود را وارد کنید.</p>
+    <form id="adminProfileForm" onsubmit="saveAdminProfile(event)" class="space-y-3">
+      <div><label class="block text-xs font-bold text-gray-700 mb-1">نام:</label><input type="text" id="adminFirstName" required class="w-full px-3 py-1.5 border rounded-lg"></div>
+      <div><label class="block text-xs font-bold text-gray-700 mb-1">نام خانوادگی:</label><input type="text" id="adminLastName" required class="w-full px-3 py-1.5 border rounded-lg"></div>
+      <div class="grid grid-cols-2 gap-2">
+        <div><label class="block text-xs font-bold text-gray-700 mb-1">جنسیت:</label><select id="adminGender" class="w-full px-3 py-1.5 border rounded-lg bg-white"><option value="آقای">آقای</option><option value="خانم">خانم</option></select></div>
+        <div><label class="block text-xs font-bold text-gray-700 mb-1">سنوات خدمت:</label><input type="number" id="adminServiceYears" min="0" max="50" required class="w-full px-3 py-1.5 border rounded-lg text-center"></div>
+      </div>
+      <div class="grid grid-cols-2 gap-2">
+        <div><label class="block text-xs font-bold text-gray-700 mb-1">تاریخ تولد:</label><input type="text" id="adminBirthDate" placeholder="1368/02/10" required class="w-full px-3 py-1.5 border rounded-lg text-center font-mono"></div>
+        <div><label class="block text-xs font-bold text-gray-700 mb-1">سمت شغلی:</label><input type="text" id="adminPosition" required class="w-full px-3 py-1.5 border rounded-lg"></div>
+      </div>
+      <div><label class="block text-xs font-bold text-gray-700 mb-1">ایمیل بازیابی:</label><input type="email" id="adminEmail" required placeholder="admin@example.com" class="w-full px-3 py-1.5 border rounded-lg text-left" dir="ltr"></div>
+      <div>
+        <label class="block text-xs font-bold text-gray-700 mb-1">شماره تلفن همراه:</label>
+        <div class="flex items-center border rounded-lg overflow-hidden">
+          <span class="bg-gray-100 px-2 py-1.5 text-xs font-bold text-gray-600 border-l">+98</span>
+          <input type="text" id="adminPhone" maxlength="10" placeholder="9121234567" required class="w-full px-2 py-1.5 outline-none text-center font-mono text-xs">
+        </div>
+      </div>
+      <div><label class="block text-xs font-bold text-gray-700 mb-1">نوع استخدام:</label><select id="adminEmploymentType" class="w-full px-3 py-1.5 border rounded-lg bg-white"><option value="رسمی">رسمی</option><option value="پیمانی">پیمانی</option><option value="شرکتی">شرکتی</option><option value="قراردادی">قراردادی</option><option value="طرحی">طرحی</option><option value="ساعتی">ساعتی</option><option value="پیام‌آور">پیام‌آور</option><option value="تبصره ۳">تبصره ۳</option><option value="تبصره ۴">تبصره ۴</option></select></div>
+      <button type="submit" class="w-full bg-badesaba-main hover:bg-badesaba-hover text-white py-2.5 rounded-lg font-bold shadow transition mt-2">ذخیره اطلاعات</button>
+    </form>
+  </div>
+</div>
+
+<!-- Modal شیفت -->
+<div id="shiftModal" class="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 hidden flex items-center justify-center p-4">
+  <div class="bg-white rounded-2xl shadow-2xl max-w-md w-full p-5 space-y-4 max-h-[90vh] overflow-y-auto">
+    <div class="flex justify-between items-center border-b pb-2">
+      <h3 id="modalDateTitle" class="font-black text-badesaba-main text-base">انتخاب شیفت</h3>
+      <button onclick="closeModal()" class="text-gray-400 hover:text-gray-600 font-bold">✕</button>
+    </div>
+    <div class="grid grid-cols-1 gap-2 text-xs">
+      <button onclick="selectShift('M')" class="py-2.5 px-3 rounded-xl border border-sky-200 bg-sky-50 text-sky-900 font-bold hover:bg-sky-100 flex justify-between items-center"><span>☀️ صبح (M)</span><span class="font-mono text-gray-500">M</span></button>
+      <button onclick="selectShift('E')" class="py-2.5 px-3 rounded-xl border border-amber-200 bg-amber-50 text-amber-900 font-bold hover:bg-amber-100 flex justify-between items-center"><span>⛅ عصر (E)</span><span class="font-mono text-gray-500">E</span></button>
+      <button onclick="selectShift('N')" class="py-2.5 px-3 rounded-xl border border-indigo-200 bg-indigo-50 text-indigo-900 font-bold hover:bg-indigo-100 flex justify-between items-center"><span>🌙 شب (N)</span><span class="font-mono text-gray-500">N</span></button>
+      <button onclick="selectShift('MN')" class="py-2.5 px-3 rounded-xl border border-cyan-200 bg-cyan-50 text-cyan-900 font-bold hover:bg-cyan-100 flex justify-between items-center"><span>🔄 صبح شب (MN)</span><span class="font-mono text-gray-500">MN</span></button>
+      <button onclick="selectShift('EN')" class="py-2.5 px-3 rounded-xl border border-orange-200 bg-orange-50 text-orange-900 font-bold hover:bg-orange-100 flex justify-between items-center"><span>🌇 عصر شب (EN)</span><span class="font-mono text-gray-500">EN</span></button>
+      <button onclick="selectShift('MEN')" class="py-2.5 px-3 rounded-xl border border-purple-200 bg-purple-50 text-purple-900 font-bold hover:bg-purple-100 flex justify-between items-center"><span>🏥 صبح عصر شب (MEN)</span><span class="font-mono text-gray-500">MEN</span></button>
+      <button onclick="selectShift('O')" class="py-2.5 px-3 rounded-xl border border-rose-200 bg-rose-50 text-rose-900 font-bold hover:bg-rose-100 flex justify-between items-center"><span>🚫 آف / استراحت (O)</span><span class="font-mono text-gray-500">O</span></button>
+      <button onclick="selectShift('H')" class="py-2.5 px-3 rounded-xl border border-emerald-200 bg-emerald-50 text-emerald-900 font-bold hover:bg-emerald-100 flex justify-between items-center"><span>🌴 مرخصی استحقاقی (H)</span><span class="font-mono text-gray-500">H</span></button>
+      <button onclick="selectShift('S')" class="py-2.5 px-3 rounded-xl border border-teal-200 bg-teal-50 text-teal-900 font-bold hover:bg-teal-100 flex justify-between items-center"><span>🏥 مرخصی استعلاجی (S)</span><span class="font-mono text-gray-500">S</span></button>
+      <button onclick="selectShift('M1')" class="py-2.5 px-3 rounded-xl border border-blue-200 bg-blue-50 text-blue-900 font-bold hover:bg-blue-100 flex justify-between items-center"><span>💼 ماموریت (M1)</span><span class="font-mono text-gray-500">M1</span></button>
+      <button onclick="selectShift('')" class="w-full py-2 px-4 rounded-xl border border-gray-200 text-gray-500 font-bold hover:bg-gray-50 mt-2">پاک کردن شیفت این روز</button>
+    </div>
+  </div>
+</div>
+
+<!-- Modal مدیریت پرسنل -->
+<div id="staffManagerModal" class="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 hidden flex items-center justify-center p-4">
+  <div class="bg-white rounded-2xl shadow-2xl max-w-3xl w-full p-6 space-y-4 max-h-[90vh] overflow-y-auto">
+    <div class="flex justify-between items-center border-b pb-2">
+      <h3 class="font-black text-badesaba-main text-lg">👥 مدیریت پرسنل</h3>
+      <button onclick="closeStaffManager()" class="text-gray-400 hover:text-gray-600 font-bold text-xl">✕</button>
+    </div>
+    <div class="flex gap-2">
+      <button onclick="openAddStaffForm()" class="bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold py-2 px-4 rounded-lg">➕ افزودن پرسنل جدید</button>
+    </div>
+    <div id="staffManagerList" class="space-y-2"></div>
+  </div>
+</div>
+
+<!-- Modal فرم پرسنل -->
+<div id="staffFormModal" class="fixed inset-0 bg-black/60 backdrop-blur-sm z-[60] hidden flex items-center justify-center p-4">
+  <div class="bg-white rounded-2xl shadow-2xl max-w-lg w-full p-6 space-y-3 max-h-[90vh] overflow-y-auto">
+    <h3 id="staffFormTitle" class="font-black text-badesaba-main text-base text-center">افزودن پرسنل جدید</h3>
+    <form id="staffForm" onsubmit="saveStaff(event)" class="space-y-3">
+      <input type="hidden" id="staffEditId">
+      <div><label class="block text-xs font-bold text-gray-700 mb-1">کد ملی:</label><input type="text" id="staffNationalId" maxlength="10" required class="w-full px-3 py-1.5 border rounded-lg text-center font-mono"></div>
+      <div class="grid grid-cols-2 gap-2">
+        <div><label class="block text-xs font-bold text-gray-700 mb-1">نام:</label><input type="text" id="staffFirstName" required class="w-full px-3 py-1.5 border rounded-lg"></div>
+        <div><label class="block text-xs font-bold text-gray-700 mb-1">نام خانوادگی:</label><input type="text" id="staffLastName" required class="w-full px-3 py-1.5 border rounded-lg"></div>
+      </div>
+      <div class="grid grid-cols-2 gap-2">
+        <div><label class="block text-xs font-bold text-gray-700 mb-1">جنسیت:</label><select id="staffGender" class="w-full px-3 py-1.5 border rounded-lg bg-white"><option value="آقای">آقای</option><option value="خانم">خانم</option></select></div>
+        <div><label class="block text-xs font-bold text-gray-700 mb-1">سنوات خدمت:</label><input type="number" id="staffServiceYears" min="0" max="50" required class="w-full px-3 py-1.5 border rounded-lg text-center"></div>
+      </div>
+      <div class="grid grid-cols-2 gap-2">
+        <div><label class="block text-xs font-bold text-gray-700 mb-1">تاریخ تولد:</label><input type="text" id="staffBirthDate" placeholder="1370/05/12" required class="w-full px-3 py-1.5 border rounded-lg text-center font-mono"></div>
+        <div><label class="block text-xs font-bold text-gray-700 mb-1">سمت شغلی:</label><input type="text" id="staffPosition" required class="w-full px-3 py-1.5 border rounded-lg"></div>
+      </div>
+      <div class="grid grid-cols-2 gap-2"><div><label class="block text-xs font-bold text-gray-700 mb-1">رشته تحصیلی:</label><input type="text" id="staffFieldOfStudy" placeholder="پرستاری، مامایی، هوشبری..." required class="w-full px-3 py-1.5 border rounded-lg"></div><div><label class="block text-xs font-bold text-gray-700 mb-1">مقطع تحصیلی:</label><select id="staffEducationLevel" class="w-full px-3 py-1.5 border rounded-lg bg-white"><option>دیپلم</option><option>کاردانی</option><option>کارشناسی</option><option>کارشناسی ارشد</option><option>دکتری</option><option>سایر</option></select></div></div>
+      <div class="grid grid-cols-2 gap-2">
+        <div><label class="block text-xs font-bold text-gray-700 mb-1">بخش محل خدمت:</label><select id="staffDepartment" class="w-full px-3 py-1.5 border rounded-lg bg-white"></select></div>
+        <div><label class="block text-xs font-bold text-gray-700 mb-1">سطح دسترسی:</label><select id="staffRole" class="w-full px-3 py-1.5 border rounded-lg bg-white"><option value="employee">عضو</option><option value="admin">ادمین ارشد</option><option value="department_manager">مدیر بخش</option><option value="senior_manager">مدیر ارشد</option></select></div>
+      </div>
+      <div class="grid grid-cols-2 gap-2">
+        <div><label class="block text-xs font-bold text-gray-700 mb-1">ایمیل بازیابی:</label><input type="email" id="staffEmail" required placeholder="name@example.com" class="w-full px-3 py-1.5 border rounded-lg text-left" dir="ltr"></div>
+        <div>
+          <label class="block text-xs font-bold text-gray-700 mb-1">شماره تلفن همراه:</label>
+          <div class="flex items-center border rounded-lg overflow-hidden">
+            <span class="bg-gray-100 px-2 py-1.5 text-xs font-bold text-gray-600 border-l">+98</span>
+            <input type="text" id="staffPhone" maxlength="10" placeholder="9121234567" required class="w-full px-2 py-1.5 outline-none text-center font-mono text-xs">
+          </div>
+        </div>
+        <div><label class="block text-xs font-bold text-gray-700 mb-1">نوع استخدام:</label><select id="staffEmploymentType" class="w-full px-3 py-1.5 border rounded-lg bg-white"><option value="رسمی">رسمی</option><option value="پیمانی">پیمانی</option><option value="شرکتی">شرکتی</option><option value="قراردادی">قراردادی</option><option value="طرحی">طرحی</option><option value="ساعتی">ساعتی</option><option value="پیام‌آور">پیام‌آور</option><option value="تبصره ۳">تبصره ۳</option><option value="تبصره ۴">تبصره ۴</option></select></div>
+      </div>
+      <div class="grid grid-cols-2 gap-2">
+        <div><label class="block text-xs font-bold text-gray-700 mb-1">شروع به کار (شمسی):</label><input type="text" id="staffStartDate" placeholder="1400/01/01" class="w-full px-3 py-1.5 border rounded-lg text-center font-mono"></div>
+        <div><label class="block text-xs font-bold text-gray-700 mb-1">پایان کار (شمسی):</label><input type="text" id="staffEndDate" placeholder="1403/12/29" class="w-full px-3 py-1.5 border rounded-lg text-center font-mono"></div>
+      </div>
+      <p class="text-[11px] text-amber-700 bg-amber-50 border border-amber-200 rounded-lg p-2">در هر زمان فقط یک ادمین ارشد و یک مدیر ارشد مجاز است. با انتخاب فرد جدید، نقش قبلی با تأیید شما به عضو تنزل می‌یابد.</p>
+      <div><label class="block text-xs font-bold text-gray-700 mb-1">رمز عبور:</label><input type="text" id="staffPassword" required class="w-full px-3 py-1.5 border rounded-lg font-mono"><button type="button" id="resetStaffPasswordBtn" onclick="resetStaffPassword()" class="hidden mt-2 w-full bg-amber-600 hover:bg-amber-700 text-white px-3 py-2 rounded-lg text-xs font-bold">🔐 تعریف رمز موقت جدید برای این پرسنل</button><p id="temporaryPasswordNotice" class="hidden mt-2 text-[11px] text-amber-800 bg-amber-50 border border-amber-200 rounded-lg p-2"></p></div>
+      <div class="flex gap-2 pt-2">
+        <button type="submit" class="flex-1 bg-badesaba-main hover:bg-badesaba-hover text-white py-2.5 rounded-lg font-bold shadow transition">ذخیره</button>
+        <button type="button" onclick="closeStaffForm()" class="flex-1 bg-gray-200 hover:bg-gray-300 text-gray-700 py-2.5 rounded-lg font-bold transition">انصراف</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- Modal تعطیلات -->
+<div id="holidayManagerModal" class="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 hidden flex items-center justify-center p-4">
+  <div class="bg-white rounded-2xl shadow-2xl max-w-2xl w-full p-6 space-y-4 max-h-[90vh] overflow-y-auto">
+    <div class="flex justify-between items-center border-b pb-2">
+      <h3 class="font-black text-badesaba-main text-lg">🗓️ مدیریت تعطیلات رسمی</h3>
+      <button onclick="closeHolidayManager()" class="text-gray-400 hover:text-gray-600 font-bold text-xl">✕</button>
+    </div>
+    <div class="bg-amber-50 p-3 rounded-lg border border-amber-200 space-y-2">
+      <p class="text-xs font-bold text-amber-900">افزودن تعطیلات جدید (تاریخ شمسی):</p>
+      <div class="grid grid-cols-2 md:grid-cols-4 gap-2">
+        <input type="number" id="holidayMonth" placeholder="ماه" min="1" max="12" class="px-2 py-1.5 border rounded text-center text-xs">
+        <input type="number" id="holidayDay" placeholder="روز" min="1" max="31" class="px-2 py-1.5 border rounded text-center text-xs">
+        <input type="text" id="holidayTitle" placeholder="عنوان تعطیلی" class="px-2 py-1.5 border rounded text-xs md:col-span-2">
+      </div>
+      <button onclick="addHoliday()" class="bg-purple-700 hover:bg-purple-800 text-white text-xs font-bold py-2 px-4 rounded-lg">➕ افزودن</button>
+    </div>
+    <div id="holidayList" class="space-y-1 text-xs"></div>
+  </div>
+</div>
+
+<!-- Modal نمایش رمز موقت پرسنل جدید -->
+<div id="newStaffPasswordModal" class="fixed inset-0 bg-black/60 backdrop-blur-sm z-[90] hidden flex items-center justify-center p-4" dir="rtl">
+  <div class="bg-white rounded-2xl shadow-2xl max-w-md w-full p-6 space-y-5">
+    <div class="text-center"><div class="text-4xl mb-2">🔐</div><h3 class="font-black text-badesaba-main text-lg">پرسنل با موفقیت ایجاد شد</h3><p class="text-xs text-gray-600 mt-2">رمز موقت را به‌صورت امن به پرسنل تحویل دهید.</p></div>
+    <div class="bg-slate-50 border rounded-xl p-4 text-sm space-y-2"><div>نام: <b id="newStaffPasswordName"></b></div><div>کد ملی: <b id="newStaffPasswordNationalId" class="font-mono"></b></div><div class="border-t pt-3 mt-3"><div class="text-xs text-gray-500 mb-1">رمز موقت</div><div id="newStaffPasswordValue" dir="ltr" class="text-center font-mono font-black text-2xl tracking-widest bg-white border-2 border-badesaba-gold rounded-lg py-3 select-all"></div></div></div>
+    <div class="flex gap-2"><button type="button" onclick="copyNewStaffPassword()" class="flex-1 bg-amber-600 hover:bg-amber-700 text-white py-2.5 rounded-lg font-bold">📋 کپی رمز</button><button type="button" onclick="closeNewStaffPasswordModal()" class="flex-1 bg-badesaba-main hover:bg-badesaba-hover text-white py-2.5 rounded-lg font-bold">متوجه شدم</button></div>
+  </div>
+</div>
+
+<script>
+/* ============================================================
+   ⚠️ تنظیمات Firebase — این بخش را با اطلاعات پروژه خودت عوض کن
+   ============================================================
+   ۱. برو به https://console.firebase.google.com
+   ۲. پروژه بساز → Firestore Database → Create (Test mode)
+   ۳. Project settings → Your apps → Web → firebaseConfig را کپی کن
+   ۴. مقادیر زیر را جایگزین کن
+*/
+const firebaseConfig = {
+  apiKey: "AIzaSyDm4BmnWAWEkvZzTOX62MgYyHaseHypHxU",
+  authDomain: "opratingroom-8d83d.firebaseapp.com",
+  projectId: "opratingroom-8d83d",
+  storageBucket: "opratingroom-8d83d.firebasestorage.app",
+  messagingSenderId: "285907666489",
+  appId: "1:285907666489:web:82b16e3254989f74e76fe8",
+  measurementId: "G-724502P73L"
+};
+/* ============================================================ */
+
+firebase.initializeApp(firebaseConfig);
+const auth = firebase.auth();
+// اپ ثانویه برای ساخت حساب پرسنل بدون خارج‌کردن ادمین از حساب فعلی.
+const secondaryApp = firebase.initializeApp(firebaseConfig, 'Secondary');
+const secondaryAuth = secondaryApp.auth();
+const db = firebase.firestore();
+function generateTemporaryPassword() { const uuid=(crypto.randomUUID?.()||'').replaceAll('-',''); if(uuid.length>=12)return uuid.slice(0,12); return Array.from(crypto.getRandomValues(new Uint8Array(12))).map(b=>b.toString(36)).join('').slice(0,12); }
+function toast(message, type='info') { const el=document.createElement('div'); el.className=`fixed bottom-5 left-5 z-[100] max-w-sm px-4 py-3 rounded-xl shadow-2xl text-xs font-bold text-white ${type==='error'?'bg-red-700':type==='success'?'bg-emerald-700':'bg-slate-800'}`; el.textContent=message; document.body.appendChild(el); setTimeout(()=>el.remove(),4200); }
+
+// ---------- توابع کمکی تاریخ ----------
+function isValidIranianNationalId(input) {
+  if (!/^\d{10}$/.test(input)) return false;
+  const check = parseInt(input[9]);
+  const sum = input.substring(0, 9).split('').reduce((acc, x, i) => acc + parseInt(x) * (10 - i), 0);
+  const remainder = sum % 11;
+  return (remainder < 2 && check === remainder) || (remainder >= 2 && check === 11 - remainder);
+}
+
+const SHIFT_MAP = {
+  M:  {code:'M',  title:'صبح',         class:'bg-sky-100 text-sky-900 border-sky-300'},
+  E:  {code:'E',  title:'عصر',         class:'bg-amber-100 text-amber-900 border-amber-300'},
+  N:  {code:'N',  title:'شب',          class:'bg-indigo-100 text-indigo-900 border-indigo-300'},
+  MN: {code:'MN', title:'صبح شب',      class:'bg-cyan-100 text-cyan-900 border-cyan-300'},
+  EN: {code:'EN', title:'عصر شب',      class:'bg-orange-100 text-orange-900 border-orange-300'},
+  MEN:{code:'MEN',title:'صبح عصر شب',  class:'bg-purple-100 text-purple-900 border-purple-300'},
+  O:  {code:'O',  title:'آف',          class:'bg-rose-100 text-rose-900 border-rose-300'},
+  H:  {code:'H',  title:'استحقاقی',    class:'bg-emerald-100 text-emerald-900 border-emerald-300'},
+  S:  {code:'S',  title:'استعلاجی',    class:'bg-teal-100 text-teal-900 border-teal-300'},
+  M1: {code:'M1', title:'ماموریت',     class:'bg-blue-100 text-blue-900 border-blue-300'}
+};
+
+const DEFAULT_HOLIDAYS = {
+  '1-1':'عید نوروز','1-2':'عید نوروز','1-3':'عید نوروز','1-4':'عید نوروز',
+  '1-12':'روز جمهوری اسلامی','1-13':'سیزده بدر',
+  '3-14':'رحلت امام خمینی','3-15':'قیام ۱۵ خرداد',
+  '11-22':'پیروزی انقلاب','12-29':'روز ملی شدن صنعت نفت'
+};
+
+function jalaliToGregorian(jy, jm, jd) {
+  jy += 1595;
+  let days = -355668 + (365 * jy) + (Math.floor(jy / 33) * 8) + Math.floor(((jy % 33) + 3) / 4) + jd + ((jm < 7) ? (jm - 1) * 31 : ((jm - 7) * 30) + 186);
+  let gy = 400 * Math.floor(days / 146097);
+  days %= 146097;
+  if (days > 36524) {
+    gy += 100 * Math.floor(--days / 36524);
+    days %= 36524;
+    if (days >= 365) days++;
+  }
+  gy += 4 * Math.floor(days / 1461);
+  days %= 1461;
+  if (days > 365) {
+    gy += Math.floor((days - 1) / 365);
+    days = (days - 1) % 365;
+  }
+  let gd = days + 1;
+  const sal_a = [0, 31, ((gy % 4 === 0 && gy % 100 !== 0) || (gy % 400 === 0)) ? 29 : 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31];
+  let gm;
+  for (gm = 0; gm < 13 && gd > sal_a[gm]; gm++) gd -= sal_a[gm];
+  return [gy, gm, gd];
+}
+
+function isJalaliLeap(jy) {
+  const mod = jy % 33;
+  return [1, 5, 9, 13, 17, 22, 26, 30].includes(mod);
+}
+
+function getDaysInJalaliMonth(jy, jm) {
+  if (jm <= 6) return 31;
+  if (jm <= 11) return 30;
+  return isJalaliLeap(jy) ? 30 : 29;
+}
+
+function getDayOfWeek(jy, jm, jd) {
+  const [gy, gm, gd] = jalaliToGregorian(jy, jm, jd);
+  return (new Date(gy, gm - 1, gd).getDay() + 1) % 7;
+}
+
+function getTodayJalali() {
+  const now = new Date();
+  const gy = now.getFullYear(), gm = now.getMonth() + 1, gd = now.getDate();
+  const g_d_m = [0, 31, ((gy % 4 === 0 && gy % 100 !== 0) || (gy % 400 === 0)) ? 29 : 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31];
+  let jy = (gy <= 1600) ? 0 : 979;
+  let gy2 = gy - ((gy <= 1600) ? 621 : 1600);
+  const gy3 = (gm > 2) ? (gy2 + 1) : gy2;
+  let days = (365 * gy2) + Math.floor((gy3 + 3) / 4) - Math.floor((gy3 + 99) / 100) + Math.floor((gy3 + 399) / 400) - 80 + gd;
+  for (let i = 0; i < gm - 1; i++) days += g_d_m[i + 1];
+  jy += 33 * Math.floor(days / 12053);
+  days %= 12053;
+  jy += 4 * Math.floor(days / 1461);
+  days %= 1461;
+  if (days > 365) {
+    jy += Math.floor((days - 1) / 365);
+    days = (days - 1) % 365;
+  }
+  const jm = (days < 186) ? 1 + Math.floor(days / 31) : 7 + Math.floor((days - 186) / 30);
+  const jd = 1 + ((days < 186) ? (days % 31) : ((days - 186) % 30));
+  return { jy, jm, jd };
+}
+
+function parseJalaliDate(str) {
+  if (!str || !str.trim()) return null;
+  const parts = str.trim().split('/');
+  if (parts.length !== 3) return null;
+  const y = parseInt(parts[0]), m = parseInt(parts[1]), d = parseInt(parts[2]);
+  if (isNaN(y) || isNaN(m) || isNaN(d)) return null;
+  return y * 10000 + m * 100 + d;
+}
+
+function jalaliDateToNumber(jy, jm, jd) {
+  return jy * 10000 + jm * 100 + jd;
+}
+
+function gregorianToJalali(gy, gm, gd) {
+  const g_d_m = [0, 31, ((gy % 4 === 0 && gy % 100 !== 0) || (gy % 400 === 0)) ? 29 : 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31];
+  let jy = (gy <= 1600) ? 0 : 979;
+  let gy2 = gy - ((gy <= 1600) ? 621 : 1600);
+  const gy3 = (gm > 2) ? (gy2 + 1) : gy2;
+  let days = (365 * gy2) + Math.floor((gy3 + 3) / 4) - Math.floor((gy3 + 99) / 100) + Math.floor((gy3 + 399) / 400) - 80 + gd;
+  for (let i = 0; i < gm - 1; i++) days += g_d_m[i + 1];
+  jy += 33 * Math.floor(days / 12053);
+  days %= 12053;
+  jy += 4 * Math.floor(days / 1461);
+  days %= 1461;
+  if (days > 365) {
+    jy += Math.floor((days - 1) / 365);
+    days = (days - 1) % 365;
+  }
+  const jm = (days < 186) ? 1 + Math.floor(days / 31) : 7 + Math.floor((days - 186) / 30);
+  const jd = 1 + ((days < 186) ? (days % 31) : ((days - 186) % 30));
+  return { jy, jm, jd };
+}
+
+function isUserActiveInMonth(user, year, month) {
+  if (user.role === 'admin') return true;
+  const start = parseJalaliDate(user.startDate);
+  const end = parseJalaliDate(user.endDate);
+  if (start === null && end === null) return true;
+  const startOfMonth = year * 10000 + month * 100 + 1;
+  const lastDay = getDaysInJalaliMonth(year, month);
+  const endOfMonth = year * 10000 + month * 100 + lastDay;
+  if (start !== null && endOfMonth < start) return false;
+  if (end !== null && startOfMonth > end) return false;
+  return true;
+}
+
+const monthNames = ['فروردین','اردیبهشت','خرداد','تیر','مرداد','شهریور','مهر','آبان','آذر','دی','بهمن','اسفند'];
+
+const DEFAULT_ADMIN = {
+  nationalId: '1111111111',
+  password: 'admin',
+  firstName: 'امین',
+  lastName: 'رضایی',
+  gender: 'آقای',
+  serviceYears: 8,
+  birthDate: '1368/02/10',
+  position: 'مدیر سیستم / ادمین',
+  employmentType: 'رسمی',
+  role: 'admin',
+  profileCompleted: true,
+  mustChangeCredentials: true,
+  phone: '',
+  startDate: '',
+  endDate: ''
+};
+
+let state = {
+  users: [],
+  currentUser: null,
+  shifts: {},
+  shiftIndex: {},
+  shiftMeta: {},
+  settings: { periodFrom: '', periodTo: '', submissionStart: '', submissionDays: 2 },
+  holidays: { ...DEFAULT_HOLIDAYS },
+  currentYear: getTodayJalali().jy,
+  currentMonth: getTodayJalali().jm,
+	  selectedDayForModal: null,
+	  viewingUserId: null,
+	  ready: false,
+	  loginFlowActive: false,
+	  securityRequired: false,
+	  memberOrder: {},
+  departments: [
+    { id: 'ot', name: 'اتاق عمل', description: 'اتاق‌های عمل و ریکاوری', managerId: '' },
+    { id: 'icu', name: 'ICU', description: 'مراقبت‌های ویژه', managerId: '' },
+    { id: 'nicu', name: 'NICU', description: 'مراقبت‌های ویژه نوزادان', managerId: '' },
+    { id: 'ccu', name: 'CCU', description: 'مراقبت‌های ویژه قلب', managerId: '' },
+    { id: 'women-surgery', name: 'جراحی زنان', description: '', managerId: '' },
+    { id: 'men-surgery', name: 'جراحی مردان', description: '', managerId: '' },
+    { id: 'pediatrics', name: 'اطفال', description: '', managerId: '' },
+    { id: 'postpartum', name: 'پست پارتوم', description: '', managerId: '' },
+    { id: 'delivery', name: 'زایشگاه', description: '', managerId: '' },
+    { id: 'nursing-office', name: 'دفتر پرستاری', description: '', managerId: '' },
+    { id: 'emergency', name: 'اورژانس', description: '', managerId: '' },
+    { id: 'lab', name: 'آزمایشگاه', description: '', managerId: '' },
+    { id: 'radiology', name: 'رادیولوژی', description: '', managerId: '' }
+  ]
+};
+
+// ---------- لایه داده Firebase ----------
+async function ensureAdminAfterLogin(credential) {
+  const snap=await db.collection('users').limit(1).get();
+  if(!snap.empty)return;
+  const email=`${DEFAULT_ADMIN.nationalId}@roomnik.app`;
+  if((auth.currentUser?.email||'').toLowerCase()!==email || auth.currentUser.uid!==credential.user.uid) throw new Error('ساخت خودکار ادمین فقط پس از ورود با حساب پیش‌فرض مجاز است.');
+  const {password,...adminData}=DEFAULT_ADMIN;
+  await db.collection('users').doc(DEFAULT_ADMIN.nationalId).set({...adminData,uid:credential.user.uid},{merge:true});
+}
+
+async function loadUsers() {
+  const snap = await db.collection('users').get();
+  state.users = [];
+  snap.forEach(doc => state.users.push({ ...doc.data(), nationalId: doc.id }));
+}
+
+async function loadSettings() {
+  const snap = await db.collection('config').doc('settings').get();
+  if (snap.exists) {
+    state.settings = { ...state.settings, ...snap.data() };
+  }
+}
+
+async function loadDepartments() {
+  const snap = await db.collection('config').doc('departments').get();
+  if (snap.exists && Array.isArray(snap.data().items)) state.departments = snap.data().items;
+  else await db.collection('config').doc('departments').set({ items: state.departments });
+}
+async function saveDepartments() { await db.collection('config').doc('departments').set({ items: state.departments }); }
+
+async function loadHolidays() {
+  const snap = await db.collection('config').doc('holidays').get();
+  if (snap.exists && snap.data().map) {
+    state.holidays = snap.data().map;
+  } else {
+    await db.collection('config').doc('holidays').set({ map: DEFAULT_HOLIDAYS });
+  }
+}
+
+async function loadShifts() {
+  const snap = await db.collection('shifts').get();
+  state.shifts = {}; state.shiftIndex = {}; state.shiftMeta = {};
+  snap.forEach(doc => { const data=doc.data(); state.shifts[doc.id] = data.code; state.shiftMeta[doc.id] = {updatedAt:data.updatedAt||null, updatedBy:data.updatedBy||null}; const parts=doc.id.split('_'); if(parts.length===4){const indexKey=`${parts[0]}_${parts[1]}_${parts[2]}`;if(!state.shiftIndex[indexKey])state.shiftIndex[indexKey]={};state.shiftIndex[indexKey][parts[3]]=data.code;} });
+}
+
+async function saveUser(user) {
+  const { nationalId, ...data } = user;
+  await db.collection('users').doc(nationalId).set(data, { merge: true });
+}
+
+async function deleteUserDoc(nid) {
+  await db.collection('users').doc(nid).delete();
+  // حذف شیفت‌های او
+  const batch = db.batch();
+  // حذف شیفت‌های کاربر با یک خواندن واحد
+  const allShifts = await db.collection('shifts').get();
+  allShifts.forEach(doc => {
+    if (doc.id.startsWith(nid + '_')) batch.delete(doc.ref);
+  });
+  await batch.commit();
+}
+
+async function saveShift(key, code) {
+  if (code) {
+    const updatedAt=new Date();
+    await db.collection('shifts').doc(key).set({ code, updatedAt: firebase.firestore.FieldValue.serverTimestamp(), updatedBy: state.currentUser?.nationalId||null }, {merge:true});
+    state.shifts[key] = code; state.shiftMeta[key] = {updatedAt, updatedBy:state.currentUser?.nationalId||null}; const parts=key.split('_'); if(parts.length===4){const indexKey=`${parts[0]}_${parts[1]}_${parts[2]}`;if(!state.shiftIndex[indexKey])state.shiftIndex[indexKey]={};state.shiftIndex[indexKey][parts[3]]=code;}
+  } else {
+    await db.collection('shifts').doc(key).delete();
+    delete state.shifts[key]; delete state.shiftMeta[key];
+    const parts=key.split('_'); if(parts.length===4){const indexKey=`${parts[0]}_${parts[1]}_${parts[2]}`;if(state.shiftIndex[indexKey]){delete state.shiftIndex[indexKey][parts[3]];if(!Object.keys(state.shiftIndex[indexKey]).length)delete state.shiftIndex[indexKey];}}
+  }
+}
+function lastShiftEditFor(nid) { let latest=null; Object.keys(state.shiftMeta||{}).forEach(key=>{if(!key.startsWith(nid+'_'))return; const raw=state.shiftMeta[key]?.updatedAt; const date=raw?.toDate ? raw.toDate() : (raw instanceof Date ? raw : raw ? new Date(raw) : null); if(date && (!latest || date>latest)) latest=date;}); return latest; }
+function formatEditTime(date) { return date ? date.toLocaleString('fa-IR',{year:'numeric',month:'2-digit',day:'2-digit',hour:'2-digit',minute:'2-digit'}) : ''; }
+
+
+async function saveSettingsToCloud() {
+  await db.collection('config').doc('settings').set(state.settings);
+}
+
+async function saveHolidaysToCloud() {
+  await db.collection('config').doc('holidays').set({ map: state.holidays });
+}
+
+async function reloadAllData() {
+  showLoading(true);
+  try {
+    await Promise.all([loadUsers(), loadSettings(), loadHolidays(), loadShifts(), loadDepartments()]);
+    if (state.currentUser) {
+      const u = state.users.find(x => x.nationalId === state.currentUser.nationalId);
+      if (u) state.currentUser = u;
+    }
+    populateViewingUserSelect();
+    const comprehensiveBtn=document.getElementById('comprehensiveMonthExportBtn'); if(comprehensiveBtn) comprehensiveBtn.classList.toggle('hidden',!['admin','senior_manager','department_manager'].includes(state.currentUser?.role));
+    renderCalendar();
+    renderStaffList();
+    if (document.getElementById('staffManagerModal') && !document.getElementById('staffManagerModal').classList.contains('hidden')) {
+      renderStaffManagerList();
+    }
+    toast('داده‌ها از سرور بروزرسانی شد. تعداد پرسنل: ' + state.users.length);
+  } catch (e) {
+    console.error(e);
+    toast('خطا در دریافت داده از سرور: ' + e.message);
+  }
+  showLoading(false);
+}
+
+function showLoading(on) {
+  const el = document.getElementById('loadingOverlay');
+  if (el) el.style.display = on ? 'flex' : 'none';
+}
+
+function getActiveUserId() {
+  if (state.currentUser && ['admin','senior_manager','department_manager'].includes(state.currentUser.role) && state.viewingUserId) {
+    return state.viewingUserId;
+  }
+  return state.currentUser ? state.currentUser.nationalId : null;
+}
+
+function populateViewingUserSelect() {
+  const sel = document.getElementById('viewingUserSelect');
+  if (!sel || !state.currentUser || !['admin','senior_manager','department_manager'].includes(state.currentUser.role)) return;
+  let list = state.users;
+  if (state.currentUser.role === 'department_manager') {
+    list = state.users.filter(u => u.departmentId === state.currentUser.departmentId || u.nationalId === state.currentUser.nationalId);
+  }
+  const sorted = [
+    ...list.filter(u => u.role === 'admin'),
+    ...list.filter(u => u.role !== 'admin')
+  ];
+  let html = '';
+  sorted.forEach(u => {
+    const label = `${u.firstName} ${u.lastName}` + (u.role === 'admin' ? ' (مدیر)' : '') + ` — ${u.nationalId}`;
+    const selected = (state.viewingUserId === u.nationalId) ? 'selected' : '';
+    html += `<option value="${u.nationalId}" ${selected}>${label}</option>`;
+  });
+  sel.innerHTML = html || '<option value="">— هیچ پرسنلی نیست —</option>';
+  if (!state.viewingUserId && state.currentUser) {
+    state.viewingUserId = state.currentUser.nationalId;
+    sel.value = state.viewingUserId;
+  }
+}
+
+function onViewingUserChange() {
+  const sel = document.getElementById('viewingUserSelect');
+  if (!sel) return;
+  state.viewingUserId = sel.value || null;
+  renderCalendar();
+  renderStaffList();
+}
+
+function switchAuthTab(tab) {
+  document.getElementById('authAlert').classList.add('hidden');
+  ['loginForm','registerForm','forgotForm'].forEach(f => document.getElementById(f).classList.add('hidden'));
+  ['tabLoginBtn','tabRegisterBtn','tabForgotBtn'].forEach(t => document.getElementById(t).className = 'flex-1 py-3 text-gray-500 hover:text-badesaba-main');
+  const map = { login: ['loginForm','tabLoginBtn'], register: ['registerForm','tabRegisterBtn'], forgot: ['forgotForm','tabForgotBtn'] };
+  const [form, btn] = map[tab];
+  document.getElementById(form).classList.remove('hidden');
+  document.getElementById(btn).className = 'flex-1 py-3 text-badesaba-main border-b-2 border-badesaba-main bg-amber-50/50';
+}
+
+function showAlert(msg, type = 'error') {
+  const box = document.getElementById('authAlert');
+  box.textContent = msg;
+  box.className = `mb-4 p-3 rounded-lg text-xs font-semibold ${type === 'error' ? 'bg-red-100 text-red-700' : 'bg-emerald-100 text-emerald-700'}`;
+  box.classList.remove('hidden');
+}
+
+function authErrorMessage(err){const code=err?.code||'';const map={'auth/user-not-found':'کاربری با این کد ملی یافت نشد','auth/invalid-credential':'کد ملی یا رمز عبور اشتباه است','auth/wrong-password':'رمز عبور اشتباه است','auth/email-already-in-use':'این کد ملی قبلاً ثبت‌نام کرده','auth/weak-password':'رمز عبور باید حداقل ۶ کاراکتر باشد','auth/too-many-requests':'تلاش‌های زیاد. لطفاً بعداً امتحان کنید','auth/network-request-failed':'خطا در اتصال به اینترنت'};return map[code]||('خطای احراز هویت: '+(err?.message||'خطای نامشخص'));}
+
+async function loadUserProfile(nationalId) {
+  const snap = await db.collection('users').doc(nationalId).get();
+  return snap.exists ? { nationalId, ...snap.data() } : null;
+}
+
+function openForceChangePasswordModal() {
+  const modal = document.getElementById('forceChangePasswordModal');
+  if (!modal) return;
+  document.getElementById('forceNewPassword').value = '';
+  document.getElementById('forceConfirmPassword').value = '';
+  const error = document.getElementById('forceChangePasswordError');
+  error.textContent = '';
+  error.classList.add('hidden');
+  modal.classList.remove('hidden');
+}
+
+function showForceChangePasswordError(message) {
+  const error = document.getElementById('forceChangePasswordError');
+  error.textContent = message;
+  error.classList.remove('hidden');
+}
+
+async function saveForceChangePassword(event) {
+  event.preventDefault();
+  const newPassword = document.getElementById('forceNewPassword').value;
+  const confirmPassword = document.getElementById('forceConfirmPassword').value;
+  const error = document.getElementById('forceChangePasswordError');
+  error.classList.add('hidden');
+
+  if (newPassword.length < 6) { showForceChangePasswordError('رمز عبور جدید باید حداقل ۶ کاراکتر باشد.'); return; }
+  if (newPassword !== confirmPassword) { showForceChangePasswordError('تکرار رمز عبور جدید مطابقت ندارد.'); return; }
+  if (!auth.currentUser || !state.currentUser) { showForceChangePasswordError('جلسه ورود معتبر نیست. لطفاً دوباره وارد شوید.'); return; }
+
+  showLoading(true);
+  try {
+    await auth.currentUser.updatePassword(newPassword);
+    await db.collection('users').doc(state.currentUser.nationalId).update({
+      mustChangePassword: firebase.firestore.FieldValue.delete()
+    });
+    delete state.currentUser.mustChangePassword;
+    const matchingUser = state.users.find(user => user.nationalId === state.currentUser.nationalId);
+    if (matchingUser) delete matchingUser.mustChangePassword;
+    document.getElementById('forceChangePasswordModal').classList.add('hidden');
+    toast('رمز عبور جدید با موفقیت ذخیره شد.', 'success');
+    document.getElementById('authView').classList.add('hidden');
+    document.getElementById('dashboardView').classList.remove('hidden');
+    document.getElementById('userHeaderInfo').classList.remove('hidden');
+    // به‌روزرسانی مستقیم نمایش قبل از بارگذاری دوباره داده‌ها
+    await initUI();
+  } catch (err) {
+    console.error(err);
+    showForceChangePasswordError('خطا در تغییر رمز عبور: ' + authErrorMessage(err));
+    showLoading(false);
+  }
+}
+
+async function completeAuthenticatedLogin(credential, nationalId, activationMessage=false) {
+  await loadUsers();
+  const user = state.users.find(u => u.nationalId === nationalId);
+  if (!user) {
+    await auth.signOut();
+    throw new Error('حساب احراز هویت شد اما پروفایل کاربری در سیستم یافت نشد.');
+  }
+  if (!user.uid) {
+    user.uid = credential.user.uid;
+    await db.collection('users').doc(nationalId).set({ uid: credential.user.uid }, { merge: true });
+  } else if (user.uid !== credential.user.uid) {
+    await auth.signOut();
+    throw new Error('این حساب احراز هویت با پروفایل متناظر مطابقت ندارد.');
+  }
+
+  await ensureAdminAfterLogin(credential);
+  delete user.password;
+  state.currentUser = user;
+  if (user.mustChangePassword === true) {
+    if (activationMessage) toast('حساب شما فعال شد. لطفاً رمز عبور جدید تعیین کنید.','success');
+    openForceChangePasswordModal();
+    showLoading(false);
+    return;
+  }
+  if (user.role === 'admin' && (user.mustChangeCredentials || user.nationalId === DEFAULT_ADMIN.nationalId)) {
+    openAccountSecurity(true);
+    showLoading(false);
+  } else if (user.role === 'admin' && !user.profileCompleted) {
+    document.getElementById('adminEmail').value = user.email || '';
+    document.getElementById('adminProfileModal').classList.remove('hidden');
+    showLoading(false);
+  } else {
+    await initUI();
+  }
+}
+
+async function handleLogin(e) {
+  e.preventDefault();
+  const nationalId = document.getElementById('loginNationalId').value.trim();
+  const pass = document.getElementById('loginPassword').value;
+  const email = `${nationalId}@roomnik.app`;
+  showLoading(true);
+  state.loginFlowActive = true;
+  let credential = null;
+  let activatedLegacyAccount = false;
+  try {
+    try {
+      credential = await auth.signInWithEmailAndPassword(email, pass);
+    } catch (signInError) {
+      if (nationalId === DEFAULT_ADMIN.nationalId && pass === DEFAULT_ADMIN.password && signInError?.code === 'auth/user-not-found') {
+        credential = await auth.createUserWithEmailAndPassword(email, pass);
+      } else if (signInError?.code === 'auth/user-not-found') {
+        if (pass !== nationalId) throw new Error('برای فعال‌سازی نخستین ورود، رمز عبور را برابر کد ملی وارد کنید.');
+
+        try {
+          credential = await auth.createUserWithEmailAndPassword(email, nationalId);
+        } catch (createError) {
+          // اگر حساب Auth از قبل وجود دارد، همان خطای ورود اصلی حفظ می‌شود.
+          if (createError?.code === 'auth/email-already-in-use') throw signInError;
+          throw createError;
+        }
+
+        try {
+          const legacyProfile = await loadUserProfile(nationalId);
+          if (!legacyProfile) {
+            await credential.user.delete();
+            throw new Error('پروفایل کاربری با این کد ملی در سیستم یافت نشد.');
+          }
+          if (legacyProfile.uid && legacyProfile.uid !== credential.user.uid) {
+            await credential.user.delete();
+            throw signInError;
+          }
+          await db.collection('users').doc(nationalId).set({
+            uid: credential.user.uid,
+            mustChangePassword: true
+          }, { merge: true });
+        } catch (profileUpdateError) {
+          // جلوگیری از ایجاد حساب Auth بدون اتصال ایمن به پروفایل Firestore.
+          try { await credential.user.delete(); } catch (rollbackError) { console.error('Legacy activation rollback failed', rollbackError); }
+          throw profileUpdateError;
+        }
+        activatedLegacyAccount = true;
+      } else {
+        throw signInError;
+      }
+    }
+    await completeAuthenticatedLogin(credential, nationalId, activatedLegacyAccount);
+  } catch (err) {
+    console.error(err);
+    showAlert(authErrorMessage(err));
+    showLoading(false);
+  } finally {
+    state.loginFlowActive = false;
+  }
+}
+
+async function handleRegister(e){e.preventDefault();const nationalId=document.getElementById('regNationalId').value.trim();if(!isValidIranianNationalId(nationalId)){showAlert('کد ملی ۱۰ رقمی وارد شده معتبر نیست.');return;}const phone=document.getElementById('regPhone').value.trim();if(!/^9\d{9}$/.test(phone)){showAlert('شماره تلفن باید ۱۰ رقم و با 9 شروع شود.');return;}showLoading(true);let credential=null;try{await loadUsers();if(state.users.some(u=>u.nationalId===nationalId)){showAlert('این کد ملی قبلاً ثبت‌نام کرده است.');showLoading(false);return;}const password=document.getElementById('regPassword').value;credential=await auth.createUserWithEmailAndPassword(`${nationalId}@roomnik.app`,password);const newUser={nationalId,uid:credential.user.uid,firstName:document.getElementById('regFirstName').value.trim(),lastName:document.getElementById('regLastName').value.trim(),gender:document.getElementById('regGender').value,serviceYears:parseInt(document.getElementById('regServiceYears').value)||0,birthDate:document.getElementById('regBirthDate').value.trim(),position:document.getElementById('regPosition').value.trim(),fieldOfStudy:document.getElementById('regFieldOfStudy').value.trim(),educationLevel:document.getElementById('regEducationLevel').value,employmentType:document.getElementById('regEmploymentType').value,email:document.getElementById('regEmail').value.trim().toLowerCase(),phone:'+98'+phone,startDate:'',endDate:'',role:'employee',profileCompleted:true};try{await saveUser(newUser);}catch(dbErr){try{await credential.user.delete();}catch(e){console.error('rollback failed',e);}throw new Error('ثبت پروفایل با خطا مواجه شد: '+dbErr.message);}state.users.push(newUser);state.currentUser=newUser;await initUI();}catch(err){showAlert(authErrorMessage(err));showLoading(false);}}
+
+
+async function handleForgotPassword(e){e.preventDefault();showAlert('لطفاً با آقای ارجمندی به شماره 09154313531 تماس بگیرید تا ادمین ارشد رمز موقت شما را از بخش مدیریت پرسنل تعیین کند. پس از استقرار Cloud Function، رمز جدید بلافاصله در Firebase فعال می‌شود.','success');}
+
+
+
+function openAccountSecurity(required=false) {
+  if (!state.currentUser) return;
+  document.getElementById('newAdminNationalId').value = state.currentUser.nationalId === DEFAULT_ADMIN.nationalId ? '' : state.currentUser.nationalId;
+  document.getElementById('currentAdminPassword').value = ''; document.getElementById('newAdminPassword').value = ''; document.getElementById('confirmAdminPassword').value = '';
+  state.securityRequired=required; document.getElementById('accountCancelBtn').classList.toggle('hidden',required); document.getElementById('accountSecurityHint').textContent = required ? 'برای امنیت، تغییر شناسه و رمز ادمین پیش‌فرض اجباری است. پس از ذخیره، ورود با اطلاعات قبلی ممکن نخواهد بود.' : 'در صورت تغییر، شناسه قبلی دیگر معتبر نخواهد بود.';
+  document.getElementById('accountSecurityModal').classList.remove('hidden');
+}
+function closeAccountSecurity(){if(state.securityRequired)return; document.getElementById('accountSecurityModal').classList.add('hidden');}
+async function saveAccountCredentials(e){
+  e.preventDefault(); const oldUser=state.currentUser; if(!oldUser)return; const newNid=document.getElementById('newAdminNationalId').value.trim(); const current=document.getElementById('currentAdminPassword').value; const next=document.getElementById('newAdminPassword').value; const confirmNext=document.getElementById('confirmAdminPassword').value;
+  if(!isValidIranianNationalId(newNid) || newNid===DEFAULT_ADMIN.nationalId){toast('کد ملی جدید معتبر است و نباید کد پیش‌فرض باشد.');return;} if(next!==confirmNext){toast('تکرار رمز جدید مطابقت ندارد.');return;} if(next.length<6){toast('رمز جدید باید حداقل ۶ کاراکتر باشد.');return;} if(state.users.some(u=>u.nationalId===newNid && u.nationalId!==oldUser.nationalId)){toast('این کد ملی قبلاً استفاده شده است.');return;}
+  const updated={...oldUser,nationalId:newNid,mustChangeCredentials:false,profileCompleted:true}; showLoading(true); try{ const credential=firebase.auth.EmailAuthProvider.credential(auth.currentUser.email,current); await auth.currentUser.reauthenticateWithCredential(credential); await auth.currentUser.updateEmail(`${newNid}@roomnik.app`); await auth.currentUser.updatePassword(next);const batch=db.batch(); const oldRef=db.collection('users').doc(oldUser.nationalId); const newRef=db.collection('users').doc(newNid); const {nationalId,...updatedData}=updated; batch.set(newRef,updatedData); batch.delete(oldRef); await batch.commit(); state.users=state.users.filter(u=>u.nationalId!==oldUser.nationalId); state.users.push(updated); state.currentUser=updated; state.viewingUserId=newNid; state.securityRequired=false; document.getElementById('accountSecurityModal').classList.add('hidden'); await initUI(); toast('شناسه و رمز با موفقیت تغییر کرد. اطلاعات قبلی دیگر قابل استفاده نیست.');}catch(err){toast('خطا در تغییر اطلاعات ورود: '+authErrorMessage(err),'error');showLoading(false);}
+}
+
+async function logout(){try{await auth.signOut();}catch(err){toast(authErrorMessage(err),'error');}finally{state.currentUser=null;state.viewingUserId=null;await initUI();}}
+
+
+
+async function saveAdminProfile(e) {
+  e.preventDefault();
+  const user = state.currentUser;
+  if (!user || user.role !== 'admin') return;
+  user.firstName = document.getElementById('adminFirstName').value.trim();
+  user.lastName = document.getElementById('adminLastName').value.trim();
+  user.gender = document.getElementById('adminGender').value;
+  user.serviceYears = parseInt(document.getElementById('adminServiceYears').value) || 0;
+  user.birthDate = document.getElementById('adminBirthDate').value.trim();
+  user.position = document.getElementById('adminPosition').value.trim();
+  user.employmentType = document.getElementById('adminEmploymentType').value;
+  const phone = document.getElementById('adminPhone').value.trim();
+  if (!/^9\d{9}$/.test(phone)) { toast('شماره تلفن باید ۱۰ رقم و با 9 شروع شود.'); return; }
+  user.phone = '+98' + phone;
+  user.email = document.getElementById('adminEmail').value.trim().toLowerCase();
+  user.profileCompleted = true;
+  showLoading(true);
+  try {
+    await saveUser(user);
+    const idx = state.users.findIndex(u => u.nationalId === user.nationalId);
+    if (idx !== -1) state.users[idx] = user;
+    document.getElementById('adminProfileModal').classList.add('hidden');
+    await initUI();
+  } catch (err) {
+    toast('خطا: ' + err.message);
+    showLoading(false);
+  }
+}
+
+async function initUI() {
+  showLoading(true);
+  try {
+    if (!state.currentUser) {
+      document.getElementById('authView').classList.remove('hidden');
+      document.getElementById('dashboardView').classList.add('hidden');
+      document.getElementById('userHeaderInfo').classList.add('hidden');
+      showLoading(false);
+      return;
+    }
+
+    await Promise.all([loadUsers(), loadSettings(), loadHolidays(), loadShifts(), loadDepartments()]);
+
+    // همگام‌سازی currentUser با نسخه سرور
+    const fresh = state.users.find(u => u.nationalId === state.currentUser.nationalId);
+    if (fresh) state.currentUser = fresh;
+
+    document.getElementById('authView').classList.add('hidden');
+    document.getElementById('dashboardView').classList.remove('hidden');
+    document.getElementById('userHeaderInfo').classList.remove('hidden');
+    document.getElementById('headerUserName').textContent = `${state.currentUser.firstName} ${state.currentUser.lastName}`;
+    document.getElementById('headerUserRole').textContent = `${state.currentUser.position} (${state.currentUser.role === 'admin' ? 'ادمین ارشد' : (state.currentUser.role === 'senior_manager' ? 'مدیر ارشد' : (state.currentUser.role === 'department_manager' ? 'مدیر بخش' : 'همکار'))})`;
+
+    const today = getTodayJalali();
+    document.getElementById('currentJalaliDate').textContent = `امروز: ${today.jd} ${monthNames[today.jm - 1]} ${today.jy}`;
+
+    if (['admin','senior_manager'].includes(state.currentUser.role)) {
+      document.getElementById('adminPanel').classList.remove('hidden');
+      document.getElementById('staffSection').classList.remove('hidden');
+    } else if (state.currentUser.role === 'department_manager') {
+      document.getElementById('adminPanel').classList.remove('hidden');
+      document.getElementById('staffSection').classList.remove('hidden');
+      document.getElementById('adminStaffSelector').classList.remove('hidden');
+      document.getElementById('periodFromInput').value = state.settings.periodFrom || '';
+      document.getElementById('periodToInput').value = state.settings.periodTo || '';
+      document.getElementById('submissionStartInput').value = state.settings.submissionStart || '';
+      document.getElementById('submissionDaysInput').value = state.settings.submissionDays || 2;
+      if (!state.viewingUserId) state.viewingUserId = state.currentUser.nationalId;
+      populateViewingUserSelect();
+    } else {
+      document.getElementById('adminPanel').classList.add('hidden');
+      document.getElementById('staffSection').classList.add('hidden');
+      document.getElementById('adminStaffSelector').classList.add('hidden');
+      state.viewingUserId = state.currentUser.nationalId;
+    }
+    const comprehensiveBtn=document.getElementById('comprehensiveMonthExportBtn'); if(comprehensiveBtn) comprehensiveBtn.classList.toggle('hidden',!['admin','senior_manager','department_manager'].includes(state.currentUser?.role));
+    renderCalendar();
+    renderStaffList();
+    populateStaffListFilters();
+  } catch (err) {
+    console.error(err);
+    toast('خطا در بارگذاری: ' + err.message);
+  }
+  showLoading(false);
+}
+
+function isSubmissionWindowOpen() {
+  const startNum = parseJalaliDate(state.settings.submissionStart);
+  const days = parseInt(state.settings.submissionDays) || 0;
+  if (startNum === null || days < 1) return false;
+  const today = getTodayJalali();
+  const todayNum = jalaliDateToNumber(today.jy, today.jm, today.jd);
+  const [sy, sm, sd] = state.settings.submissionStart.trim().split('/').map(Number);
+  const [gy, gm, gd] = jalaliToGregorian(sy, sm, sd);
+  const startDate = new Date(gy, gm - 1, gd);
+  const endDate = new Date(startDate);
+  endDate.setDate(endDate.getDate() + (days - 1));
+  const endJalali = gregorianToJalali(endDate.getFullYear(), endDate.getMonth() + 1, endDate.getDate());
+  const endNum = jalaliDateToNumber(endJalali.jy, endJalali.jm, endJalali.jd);
+  return todayNum >= startNum && todayNum <= endNum;
+}
+
+function isDayInShiftPeriod(jy, jm, jd) {
+  const fromNum = parseJalaliDate(state.settings.periodFrom);
+  const toNum = parseJalaliDate(state.settings.periodTo);
+  if (fromNum === null || toNum === null) return false;
+  const dayNum = jalaliDateToNumber(jy, jm, jd);
+  return dayNum >= fromNum && dayNum <= toNum;
+}
+
+function isPeriodAllowed() {
+  if (state.currentUser && state.currentUser.role === 'admin') return true;
+  return isSubmissionWindowOpen();
+}
+
+function changeMonth(delta) {
+  state.currentMonth += delta;
+  if (state.currentMonth > 12) { state.currentMonth = 1; state.currentYear++; }
+  else if (state.currentMonth < 1) { state.currentMonth = 12; state.currentYear--; }
+  renderCalendar();
+  renderStaffList();
+  const status=document.getElementById('shiftSubmissionStatus'); if(status&&!status.classList.contains('hidden')){status.classList.add('hidden');toggleShiftSubmissionStatus();}
+}
+
+function renderCalendar() {
+  document.getElementById('calendarMonthTitle').textContent = `${monthNames[state.currentMonth - 1]} ${state.currentYear}`;
+  const submissionOpen = isSubmissionWindowOpen();
+  const badge = document.getElementById('periodStatusBadge');
+  const notice = document.getElementById('employeeNoticeText');
+  const fromStr = state.settings.periodFrom || '—';
+  const toStr = state.settings.periodTo || '—';
+  const subStart = state.settings.submissionStart || '—';
+  const subDays = state.settings.submissionDays || 0;
+
+  if (badge) {
+    if (submissionOpen) {
+      badge.textContent = `فعال — مهلت ثبت باز است`;
+      badge.className = 'px-2.5 py-0.5 rounded-full text-xs font-bold bg-emerald-100 text-emerald-800 border border-emerald-300';
+      if (notice) notice.textContent = `مهلت ثبت باز است (از ${subStart} به مدت ${subDays} روز). بازه شیفت‌ها: ${fromStr} تا ${toStr}`;
+    } else {
+      badge.textContent = 'قفل شده / خارج از مهلت ثبت';
+      badge.className = 'px-2.5 py-0.5 rounded-full text-xs font-bold bg-rose-100 text-rose-800 border border-rose-300';
+      if (notice) notice.textContent = `مهلت ثبت بسته است. بازه شیفت‌های مجاز: ${fromStr} تا ${toStr}`;
+    }
+  }
+
+  const daysInMonth = getDaysInJalaliMonth(state.currentYear, state.currentMonth);
+  const grid = document.getElementById('calendarDaysGrid');
+  grid.innerHTML = '';
+  const firstDayOfWeek = getDayOfWeek(state.currentYear, state.currentMonth, 1);
+  for (let i = 0; i < firstDayOfWeek; i++) {
+    const c = document.createElement('div');
+    c.className = 'bg-gray-50/50 min-h-[90px]';
+    grid.appendChild(c);
+  }
+
+  for (let day = 1; day <= daysInMonth; day++) {
+    const activeId = getActiveUserId();
+    const key = `${activeId}_${state.currentYear}_${state.currentMonth}_${day}`;
+    const shiftCode = state.shifts[key] || '';
+    const shiftInfo = SHIFT_MAP[shiftCode];
+    const dayOfWeek = getDayOfWeek(state.currentYear, state.currentMonth, day);
+    const isFriday = dayOfWeek === 6;
+    const holidayKey = `${state.currentMonth}-${day}`;
+    const isOfficialHoliday = state.holidays[holidayKey] !== undefined;
+    const isHoliday = isFriday || isOfficialHoliday;
+    const inPeriod = isDayInShiftPeriod(state.currentYear, state.currentMonth, day);
+
+    const cell = document.createElement('div');
+    let extraClass = isHoliday ? 'holiday' : '';
+    if (inPeriod && !isHoliday) extraClass += ' bg-emerald-50/40';
+    if (inPeriod) extraClass += ' ring-1 ring-inset ring-emerald-200/60';
+    const canEditDay = ['admin','senior_manager'].includes(state.currentUser.role) || (isUserActiveInMonth(state.currentUser, state.currentYear, state.currentMonth) && isSubmissionWindowOpen() && isDayInShiftPeriod(state.currentYear, state.currentMonth, day));
+    cell.className = `min-h-[90px] p-2 flex flex-col justify-between transition ${canEditDay ? 'cursor-pointer hover:bg-amber-50/60' : 'cursor-not-allowed opacity-60 bg-gray-50'} ${extraClass}`;
+
+    let shiftBadgeClass = 'bg-gray-100 text-gray-400 border-dashed border-gray-300';
+    let displayLabel = 'انتخاب شیفت...';
+    if (shiftInfo) {
+      shiftBadgeClass = `${shiftInfo.class} font-bold`;
+      displayLabel = `${shiftInfo.title} (${shiftInfo.code})`;
+    }
+    let holidayLabel = '';
+    if (isOfficialHoliday) holidayLabel = `<span class="text-[10px] text-red-500 font-bold">${state.holidays[holidayKey]}</span>`;
+    else if (isFriday) holidayLabel = '<span class="text-[10px] text-red-500 font-bold">جمعه</span>';
+
+    cell.innerHTML = `
+      <div class="flex justify-between items-start">
+        <span class="font-black text-sm day-number ${isHoliday ? 'text-red-600' : 'text-gray-700'}">${day}</span>
+        ${holidayLabel}
+      </div>
+      <div class="mt-2">
+        <div class="text-[11px] py-1 px-1.5 rounded-lg border text-center transition ${shiftBadgeClass}">${displayLabel}</div>
+      </div>
+    `;
+
+    cell.onclick = () => {
+      if (!canEditDay) return;
+      if (!['admin','senior_manager'].includes(state.currentUser.role)) {
+        if (!isUserActiveInMonth(state.currentUser, state.currentYear, state.currentMonth)) {
+          toast('شما در این ماه مجاز به ثبت شیفت نیستید.');
+          return;
+        }
+        if (!isSubmissionWindowOpen()) {
+          toast('مهلت ثبت شیفت پیشنهادی به پایان رسیده یا هنوز شروع نشده است.');
+          return;
+        }
+        if (!isDayInShiftPeriod(state.currentYear, state.currentMonth, day)) {
+          toast('این روز خارج از بازه مجاز شیفت‌های پیشنهادی است.\nبازه مجاز: ' + (state.settings.periodFrom || '—') + ' تا ' + (state.settings.periodTo || '—'));
+          return;
+        }
+      }
+      openModal(day);
+    };
+    grid.appendChild(cell);
+  }
+}
+
+function roleLabel(role){return role==='admin'?'ادمین ارشد':role==='senior_manager'?'مدیر ارشد':role==='department_manager'?'مدیر بخش':'عضو';}
+function populateStaffListFilters(){
+  const sel=document.getElementById('staffDepartmentFilter'); if(!sel)return;
+  const old=sel.value; sel.innerHTML='<option value="">همه بخش‌ها</option>'+state.departments.map(d=>`<option value="${d.id}">${d.name}</option>`).join(''); sel.value=old;
+}
+const SORT_LABELS={name:'نام',field:'رشته',position:'سمت',employment:'استخدام',department:'بخش',serviceYears:'سنوات',education:'مقطع',lastEdit:'آخرین ویرایش'};
+function onStaffSortChange(changed){
+  const key=changed?.value;
+  state.staffSortKeys=Array.isArray(state.staffSortKeys)?state.staffSortKeys:[];
+  if(changed?.checked){if(key&&!state.staffSortKeys.includes(key))state.staffSortKeys.push(key);}
+  else state.staffSortKeys=state.staffSortKeys.filter(k=>k!==key);
+  const hint=document.getElementById('staffSortOrderHint');if(hint)hint.textContent=state.staffSortKeys.length?'اولویت: '+state.staffSortKeys.map((k,i)=>`${i+1}) ${SORT_LABELS[k]||k}`).join(' ← '):'هیچ معیاری انتخاب نشده — پیش‌فرض: نام الفبایی';renderStaffList();
+}
+function clearStaffSort(){state.staffSortKeys=[];document.querySelectorAll('.staff-sort-cb').forEach(c=>c.checked=false);const hint=document.getElementById('staffSortOrderHint');if(hint)hint.textContent='هیچ معیاری انتخاب نشده — پیش‌فرض: نام الفبایی';renderStaffList();}
+function getStaffUsersForStatus(){
+  if(!state.currentUser)return [];
+  return state.currentUser.role==='department_manager'?state.users.filter(u=>u.departmentId===state.currentUser.departmentId||u.nationalId===state.currentUser.nationalId):state.users.filter(u=>u.role!=='admin');
+}
+function hasSubmittedShiftForMonth(nid){
+  const monthIndex=state.shiftIndex?.[`${nid}_${state.currentYear}_${state.currentMonth}`]||{};
+  return Object.values(monthIndex).some(Boolean);
+}
+function toggleShiftSubmissionStatus(){
+  const panel=document.getElementById('shiftSubmissionStatus'); if(!panel)return;
+  if(!panel.classList.contains('hidden')){panel.classList.add('hidden');return;}
+  const users=getStaffUsersForStatus(); const submitted=users.filter(u=>hasSubmittedShiftForMonth(u.nationalId)); const pending=users.filter(u=>!hasSubmittedShiftForMonth(u.nationalId));
+  const list=(rows,cls,empty)=>rows.length?rows.map(u=>`<span class="inline-flex items-center gap-1 ${cls} px-2 py-1 rounded-full font-bold">${u.firstName||''} ${u.lastName||''}</span>`).join(''): `<span class="text-gray-400">${empty}</span>`;
+  panel.innerHTML=`<div class="bg-slate-50 border rounded-xl p-3 text-xs"><div class="flex flex-wrap items-center justify-between gap-2 mb-3"><b>وضعیت ثبت شیفت — ${monthNames[state.currentMonth-1]} ${state.currentYear}</b><span class="text-gray-500">ثبت‌شده: ${submitted.length} نفر از ${users.length}</span></div><div class="grid grid-cols-1 md:grid-cols-2 gap-3"><div class="bg-emerald-50 border border-emerald-200 rounded-lg p-3"><b class="text-emerald-800">ثبت کرده‌اند (${submitted.length})</b><div class="flex flex-wrap gap-1.5 mt-2">${list(submitted,'bg-emerald-100 text-emerald-800','هنوز کسی ثبت نکرده است')}</div></div><div class="bg-rose-50 border border-rose-200 rounded-lg p-3"><b class="text-rose-800">ثبت نکرده‌اند (${pending.length})</b><div class="flex flex-wrap gap-1.5 mt-2">${list(pending,'bg-rose-100 text-rose-800','همه ثبت کرده‌اند')}</div></div></div></div>`;
+  panel.classList.remove('hidden');
+}
+
+function renderStaffList() {
+  if (!state.currentUser || !['admin','senior_manager','department_manager'].includes(state.currentUser.role)) return;
+  const container=document.getElementById('staffList'); if(!container)return;
+  populateStaffListFilters();
+  const q=(document.getElementById('staffListSearch')?.value||'').trim().toLocaleLowerCase();
+  const dept=document.getElementById('staffDepartmentFilter')?.value||'';
+  let fields = state.staffSortKeys && state.staffSortKeys.length ? state.staffSortKeys : ['name'];
+  const direction = 1;
+  let users=state.currentUser.role==='department_manager'?state.users.filter(u=>u.departmentId===state.currentUser.departmentId||u.nationalId===state.currentUser.nationalId):[...state.users];
+  users=users.filter(u=>!dept||u.departmentId===dept).filter(u=>{const text=[u.firstName,u.lastName,u.nationalId,u.position,u.fieldOfStudy].join(' ').toLocaleLowerCase();return !q||text.includes(q);});
+  const val=(u,f)=>{if(f==='name')return `${u.firstName||''} ${u.lastName||''}`;if(f==='field')return u.fieldOfStudy||'';if(f==='position')return u.position||'';if(f==='employment')return u.employmentType||'';if(f==='department')return departmentName(u.departmentId);if(f==='serviceYears')return Number(u.serviceYears)||0;if(f==='education')return u.educationLevel||'';if(f==='lastEdit'){const d=lastShiftEditFor(u.nationalId);return d?d.getTime():0;}return Number(u.orderIndex)||0;};
+  users.sort((a,b)=>{for(const f of fields){const av=val(a,f),bv=val(b,f);const c=typeof av==='number'&&typeof bv==='number'?av-bv:String(av).localeCompare(String(bv),'fa',{numeric:true,sensitivity:'base'});if(c!==0)return c*direction;}return String(a.nationalId).localeCompare(String(b.nationalId),'fa',{numeric:true});});
+  const senior=state.users.find(u=>u.role==='senior_manager'); const status=document.getElementById('seniorManagerStatus'); if(status)status.innerHTML=senior?`<span class="bg-indigo-100 text-indigo-800 px-2 py-1 rounded-full font-bold">مدیر ارشد فعلی: ${senior.firstName} ${senior.lastName}</span>`:'<span class="bg-gray-100 text-gray-500 px-2 py-1 rounded-full">مدیر ارشد تعیین نشده است</span>';
+  if(!users.length){container.innerHTML='<p class="text-xs text-gray-400 text-center py-4">پرسنلی مطابق فیلتر پیدا نشد.</p>';return;}
+  container.innerHTML=users.map((user,i)=>{const isViewing=state.viewingUserId===user.nationalId;return `<div class="border rounded-xl p-4 ${isViewing?'border-blue-400 bg-blue-50/40 ring-2 ring-blue-200':user.role==='admin'?'border-badesaba-gold bg-amber-50/30':'border-gray-100 bg-white'} shadow-sm"><div class="flex items-center justify-between mb-2 flex-wrap gap-2"><div class="flex items-center gap-2 flex-wrap"><span class="w-7 h-7 rounded-full bg-badesaba-main text-white flex items-center justify-center text-xs font-black">${i+1}</span><span class="font-black text-sm text-badesaba-main">${user.firstName} ${user.lastName}</span><span class="text-[10px] bg-slate-100 text-slate-700 px-2 py-0.5 rounded-full font-bold">${roleLabel(user.role)}</span></div><span class="text-[10px] text-gray-400 font-mono">${user.nationalId}</span></div><div class="grid grid-cols-2 md:grid-cols-5 gap-2 text-[11px] text-gray-600 mb-3"><div><b>سمت:</b> ${user.position||'-'}</div><div><b>رشته:</b> ${user.fieldOfStudy||'-'}</div><div><b>بخش:</b> ${departmentName(user.departmentId)}</div><div><b>استخدام:</b> ${user.employmentType||'-'}</div><div><b>سنوات:</b> ${user.serviceYears||0} سال</div></div><div class="mb-3 text-[11px] text-indigo-700 bg-indigo-50 border border-indigo-100 rounded-lg px-3 py-2"><b>آخرین ویرایش شیفت:</b> ${formatEditTime(lastShiftEditFor(user.nationalId))||'ثبت نشده'}</div>${['admin','senior_manager','department_manager'].includes(state.currentUser?.role)?`<div class="mb-3 bg-slate-50 border border-slate-200 rounded-lg p-2 overflow-x-auto"><div class="font-bold text-slate-700 mb-2">📅 خلاصه شیفت‌های ${monthNames[state.currentMonth-1]} ${state.currentYear}</div><table class="w-full text-[10px] text-center border-collapse"><thead><tr>${[['M','صبح'],['E','عصر'],['N','شب'],['MN','صبح+شب'],['EN','عصر+شب'],['MEN','صبح+عصر+شب'],['O','آف'],['H+S','مرخصی']].map(x=>`<th class="border border-slate-300 px-1 py-1 whitespace-nowrap">${x[1]} (${x[0]})</th>`).join('')}</tr></thead><tbody><tr>${[['M'],['E'],['N'],['MN'],['EN'],['MEN'],['O']].map(x=>`<td class="border border-slate-300 px-1 py-1 font-bold">${monthlyShiftCount(user.nationalId,x[0])}</td>`).join('')}<td class="border border-slate-300 px-1 py-1 font-bold">${monthlyShiftCount(user.nationalId,'H')+monthlyShiftCount(user.nationalId,'S')}</td></tr></tbody></table></div>`:''}<div class="flex flex-wrap gap-1"><button onclick="selectStaffForEdit('${user.nationalId}')" class="bg-blue-600 text-white text-[10px] font-bold px-2 py-1 rounded">ویرایش شیفت‌ها</button></div></div>`}).join('');
+}
+function clearStaffSearch(){const el=document.getElementById('staffListSearch');if(el){el.value='';renderStaffList();}}
+function selectStaffForEdit(nid) {
+  state.viewingUserId = nid;
+  const sel = document.getElementById('viewingUserSelect');
+  if (sel) sel.value = nid;
+  renderCalendar();
+  renderStaffList();
+  document.getElementById('calendarMonthTitle')?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+}
+
+function openModal(day) {
+  state.selectedDayForModal = day;
+  let who = '';
+  if (state.currentUser && ['admin','senior_manager','department_manager'].includes(state.currentUser.role) && state.viewingUserId && state.viewingUserId !== state.currentUser.nationalId) {
+    const u = state.users.find(x => x.nationalId === state.viewingUserId);
+    if (u) who = ` — ${u.firstName} ${u.lastName}`;
+  }
+  document.getElementById('modalDateTitle').textContent = `شیفت پیشنهادی - ${day} ${monthNames[state.currentMonth - 1]}${who}`;
+  document.getElementById('shiftModal').classList.remove('hidden');
+}
+
+function closeModal() {
+  document.getElementById('shiftModal').classList.add('hidden');
+}
+
+async function selectShift(code) {
+  if (!state.selectedDayForModal) return;
+  const activeId = getActiveUserId();
+  if (!activeId) return;
+  const key = `${activeId}_${state.currentYear}_${state.currentMonth}_${state.selectedDayForModal}`;
+  showLoading(true);
+  try {
+    await saveShift(key, code || null);
+    closeModal();
+    renderCalendar();
+    renderStaffList();
+    const status=document.getElementById('shiftSubmissionStatus'); if(status&&!status.classList.contains('hidden')){status.classList.add('hidden');toggleShiftSubmissionStatus();}
+  } catch (err) {
+    toast('خطا در ذخیره شیفت: ' + err.message);
+  }
+  showLoading(false);
+}
+
+async function savePeriodSettings() {
+  const periodFrom = document.getElementById('periodFromInput').value.trim();
+  const periodTo = document.getElementById('periodToInput').value.trim();
+  const submissionStart = document.getElementById('submissionStartInput').value.trim();
+  const submissionDays = parseInt(document.getElementById('submissionDaysInput').value);
+
+  if (!parseJalaliDate(periodFrom) || !parseJalaliDate(periodTo)) {
+    toast('لطفاً بازه شیفت‌ها را با فرمت صحیح وارد کنید (مثال: 1405/06/01).');
+    return;
+  }
+  if (!parseJalaliDate(submissionStart)) {
+    toast('لطفاً تاریخ شروع مهلت را با فرمت صحیح وارد کنید.');
+    return;
+  }
+  if (isNaN(submissionDays) || submissionDays < 1 || submissionDays > 60) {
+    toast('مدت مهلت باید بین ۱ تا ۶۰ روز باشد.');
+    return;
+  }
+  if (parseJalaliDate(periodFrom) > parseJalaliDate(periodTo)) {
+    toast('تاریخ شروع بازه نمی‌تواند بعد از تاریخ پایان باشد.');
+    return;
+  }
+
+  state.settings = { periodFrom, periodTo, submissionStart, submissionDays };
+  showLoading(true);
+  try {
+    await saveSettingsToCloud();
+    renderCalendar();
+    toast('تنظیمات بازه و مهلت با موفقیت ذخیره شد.', 'success');
+  } catch (err) {
+    toast('خطا: ' + err.message);
+  }
+  showLoading(false);
+}
+
+function openStaffManager() {
+  if (!state.currentUser || !['admin','senior_manager'].includes(state.currentUser.role)) return;
+  renderStaffManagerList();
+  document.getElementById('staffManagerModal').classList.remove('hidden');
+}
+function closeStaffManager() { document.getElementById('staffManagerModal').classList.add('hidden'); }
+
+function renderStaffManagerList() {
+  const c = document.getElementById('staffManagerList');
+  if (!c) return;
+  let html = '';
+  state.users.forEach(u => {
+    const isAdmin = u.role === 'admin';
+    html += `
+      <div class="flex items-center justify-between p-3 border rounded-lg ${isAdmin ? 'bg-amber-50 border-amber-300' : 'bg-gray-50'} text-xs">
+        <div>
+          <span class="font-bold">${u.firstName} ${u.lastName}</span>
+          <span class="text-[10px] bg-slate-100 text-slate-700 px-2 py-0.5 rounded-full font-bold">${roleLabel(u.role)}</span>
+          <span class="text-gray-400 font-mono mr-2">${u.nationalId}</span>
+          <div class="text-gray-500 mt-0.5">${u.position || ''} - ${u.employmentType || ''}</div>
+        </div>
+        <div class="flex gap-1">
+          <button onclick="editStaff('${u.nationalId}')" class="bg-blue-600 hover:bg-blue-700 text-white px-2 py-1 rounded text-[10px] font-bold">ویرایش</button>
+          ${state.currentUser?.role==='admin' && u.role!=='admin' ? `<button onclick="resetUserPasswordByAdmin('${u.nationalId}')" class="bg-amber-600 hover:bg-amber-700 text-white px-2 py-1 rounded text-[10px] font-bold">ریست رمز</button>` : ''}
+          ${u.role!=='senior_manager' ? `<button onclick="quickChangeRole('${u.nationalId}','senior_manager')" class="bg-indigo-600 hover:bg-indigo-700 text-white px-2 py-1 rounded text-[10px] font-bold">مدیر ارشد</button>` : `<button onclick="quickChangeRole('${u.nationalId}','employee')" class="bg-slate-600 hover:bg-slate-700 text-white px-2 py-1 rounded text-[10px] font-bold">تنزل به عضو</button>`}
+          ${state.currentUser?.role==='admin' && u.role!=='admin' ? `<button onclick="quickChangeRole('${u.nationalId}','admin')" class="bg-amber-600 hover:bg-amber-700 text-white px-2 py-1 rounded text-[10px] font-bold">ادمین ارشد</button>` : ''}
+          <button onclick="deleteStaff('${u.nationalId}')" class="bg-red-600 hover:bg-red-700 text-white px-2 py-1 rounded text-[10px] font-bold">حذف کامل</button>
+        </div>
+      </div>`;
+  });
+  c.innerHTML = html || '<p class="text-xs text-gray-400 text-center py-4">هیچ پرسنلی نیست.</p>';
+}
+
+async function quickChangeRole(nid, role){
+  const u=state.users.find(x=>x.nationalId===nid); if(!u)return;
+  if(role==='admin' && state.currentUser?.role!=='admin'){toast('فقط ادمین ارشد می‌تواند ادمین ارشد تعیین کند.','error');return;}
+  const other=state.users.find(x=>x.role===role && x.nationalId!==nid);
+  if(other && ['admin','senior_manager'].includes(role) && !confirm(`${roleLabel(other.role)} فعلی (${other.firstName} ${other.lastName}) به عضو تنزل یابد؟`))return;
+  showLoading(true);
+  try{
+    if(other){other.role='employee';await saveUser(other);}
+    u.role=role;await saveUser(u);
+    if(state.currentUser?.nationalId===nid){
+      state.currentUser=u;
+      await initUI();
+      return;
+    }
+    populateViewingUserSelect();renderStaffManagerList();renderStaffList();toast(`نقش ${roleLabel(role)} برای ${u.firstName} ${u.lastName} ثبت شد.`,'success');
+  }catch(err){toast('خطا در تغییر نقش: '+err.message,'error');}finally{showLoading(false);}
+}
+
+function openAddStaffForm() {
+  document.getElementById('staffFormTitle').textContent = 'افزودن پرسنل جدید';
+  document.getElementById('staffForm').reset();
+  document.getElementById('staffEditId').value = '';
+  document.getElementById('staffNationalId').readOnly = false;
+  document.getElementById('staffRole').value = 'employee';
+  const adminOption=document.querySelector('#staffRole option[value="admin"]'); if(adminOption) adminOption.hidden=state.currentUser?.role!=='admin';
+  document.getElementById('staffPassword').required = true;
+  document.getElementById('staffPassword').placeholder = 'رمز عبور اولیه';
+  document.getElementById('resetStaffPasswordBtn')?.classList.add('hidden');
+  document.getElementById('temporaryPasswordNotice')?.classList.add('hidden');
+  populateDepartmentSelect('staffDepartment');
+  document.getElementById('staffFormModal').classList.remove('hidden');
+}
+
+function editStaff(nid) {
+  const u = state.users.find(x => x.nationalId === nid);
+  if (!u) return;
+  document.getElementById('staffFormTitle').textContent = 'ویرایش پرسنل';
+  document.getElementById('staffEditId').value = u.nationalId;
+  document.getElementById('staffNationalId').value = u.nationalId;
+  document.getElementById('staffNationalId').readOnly = true;
+  document.getElementById('staffFirstName').value = u.firstName || '';
+  document.getElementById('staffLastName').value = u.lastName || '';
+  document.getElementById('staffGender').value = u.gender || 'آقای';
+  document.getElementById('staffServiceYears').value = u.serviceYears || 0;
+  document.getElementById('staffBirthDate').value = u.birthDate || '';
+  document.getElementById('staffPosition').value = u.position || '';
+  document.getElementById('staffFieldOfStudy').value = u.fieldOfStudy || '';
+  document.getElementById('staffEducationLevel').value = u.educationLevel || 'کارشناسی';
+  document.getElementById('staffEmail').value = u.email || '';
+  document.getElementById('staffPhone').value = (u.phone || '').replace('+98', '');
+  document.getElementById('staffEmploymentType').value = u.employmentType || 'رسمی';
+  document.getElementById('staffStartDate').value = u.startDate || '';
+  document.getElementById('staffEndDate').value = u.endDate || '';
+  document.getElementById('staffPassword').value = '';
+  document.getElementById('staffPassword').placeholder = 'برای حفظ رمز فعلی خالی بگذارید';
+  document.getElementById('staffPassword').required = false;
+  document.getElementById('resetStaffPasswordBtn')?.classList.toggle('hidden',state.currentUser?.role!=='admin');
+  document.getElementById('temporaryPasswordNotice')?.classList.add('hidden');
+  populateDepartmentSelect('staffDepartment');
+  document.getElementById('staffDepartment').value = u.departmentId || '';
+  document.getElementById('staffRole').value = u.role || 'employee';
+  const adminOption=document.querySelector('#staffRole option[value="admin"]'); if(adminOption) adminOption.hidden=state.currentUser?.role!=='admin' && u.role!=='admin';
+  document.getElementById('staffFormModal').classList.remove('hidden');
+}
+
+function closeStaffForm() { document.getElementById('staffFormModal').classList.add('hidden'); }
+async function resetUserPasswordByAdmin(targetNationalId){
+  if(state.currentUser?.role!=='admin'){toast('فقط ادمین ارشد می‌تواند رمز کاربران را ریست کند.','error');return;}
+  const user=state.users.find(x=>x.nationalId===targetNationalId); if(!user)return;
+  if(!confirm(`برای ریست رمز این کاربر، دو راه وجود دارد:\n۱. از کاربر بخواهید با رمز فعلی خود وارد شود؛ سپس سیستم به‌طور خودکار رمز جدید از او می‌خواهد.\n۲. اگر کاربر رمز فعلی خود را فراموش کرده، از Firebase Console → Authentication → کاربر را پیدا کنید → Reset password استفاده کنید.\nآیا پرچم «تغییر اجباری رمز» برای این کاربر فعال شود؟`))return;
+  showLoading(true);
+  try{await db.collection('users').doc(targetNationalId).set({mustChangePassword:true,resetRequested:false,updatedAt:firebase.firestore.FieldValue.serverTimestamp()},{merge:true});user.mustChangePassword=true;user.resetRequested=false;await loadUsers();renderStaffManagerList();toast('پرچم تغییر اجباری رمز فعال شد. رمز Authentication تغییر نکرده است؛ برای تغییر واقعی رمز از Firebase Console گزینه Reset password استفاده کنید.','success');}
+  catch(err){console.error(err);toast('خطا در فعال‌سازی تغییر اجباری رمز: '+err.message,'error');}
+  finally{showLoading(false);}
+}
+async function resetStaffPassword(){
+  if(state.currentUser?.role!=='admin'){toast('فقط ادمین ارشد می‌تواند رمز کاربران را تغییر دهد.','error');return;}
+  const nationalId=document.getElementById('staffEditId')?.value?.trim();
+  if(!nationalId){toast('ابتدا یک پرسنل موجود را برای ویرایش انتخاب کنید.','error');return;}
+  const user=state.users.find(x=>x.nationalId===nationalId);
+  if(!user)return;
+  if(!confirm(`برای ریست رمز این کاربر، دو راه وجود دارد:\n۱. از کاربر بخواهید با رمز فعلی خود وارد شود؛ سپس سیستم به‌طور خودکار رمز جدید از او می‌خواهد.\n۲. اگر کاربر رمز فعلی خود را فراموش کرده، از Firebase Console → Authentication → کاربر را پیدا کنید → Reset password استفاده کنید.\nآیا پرچم «تغییر اجباری رمز» برای این کاربر فعال شود؟`))return;
+  showLoading(true);
+  try{
+    await db.collection('users').doc(nationalId).set({mustChangePassword:true,resetRequested:false,updatedAt:firebase.firestore.FieldValue.serverTimestamp()},{merge:true});
+    user.mustChangePassword=true;user.resetRequested=false;
+    const notice=document.getElementById('temporaryPasswordNotice');
+    if(notice){notice.textContent='پرچم تغییر اجباری رمز فعال شد. رمز Authentication تغییر نکرده است؛ برای تغییر واقعی رمز از Firebase Console گزینه Reset password استفاده کنید.';notice.classList.remove('hidden');}
+    toast('پرچم تغییر اجباری رمز فعال شد.','success');
+  }catch(err){console.error(err);toast('خطا در فعال‌سازی تغییر اجباری رمز: '+err.message,'error');}
+  finally{showLoading(false);}
+}
+async function saveStaff(e) {
+  e.preventDefault();
+  if (!state.currentUser || state.currentUser.role !== 'admin') { toast('فقط ادمین ارشد می‌تواند پرسنل را ویرایش کند.','error'); return; }
+  const editId = document.getElementById('staffEditId').value;
+  const nationalId = document.getElementById('staffNationalId').value.trim();
+  const phone = document.getElementById('staffPhone').value.trim();
+  if (!isValidIranianNationalId(nationalId)) { toast('کد ملی معتبر نیست.'); return; }
+  if (!/^9\d{9}$/.test(phone)) { toast('شماره تلفن باید ۱۰ رقم و با 9 شروع شود.'); return; }
+
+  const data = {
+    nationalId,
+    firstName: document.getElementById('staffFirstName').value.trim(),
+    lastName: document.getElementById('staffLastName').value.trim(),
+    gender: document.getElementById('staffGender').value,
+    serviceYears: parseInt(document.getElementById('staffServiceYears').value) || 0,
+    birthDate: document.getElementById('staffBirthDate').value.trim(),
+    position: document.getElementById('staffPosition').value.trim(),
+    fieldOfStudy: document.getElementById('staffFieldOfStudy').value.trim(),
+    educationLevel: document.getElementById('staffEducationLevel').value,
+    email: document.getElementById('staffEmail').value.trim().toLowerCase(),
+    phone: '+98' + phone,
+    employmentType: document.getElementById('staffEmploymentType').value,
+    departmentId: document.getElementById('staffDepartment').value || '',
+    startDate: document.getElementById('staffStartDate').value.trim(),
+    endDate: document.getElementById('staffEndDate').value.trim(),
+    role: document.getElementById('staffRole').value || 'employee',
+    profileCompleted: true,
+    orderIndex: editId ? (state.users.find(u => u.nationalId === editId)?.orderIndex || 0) : Math.max(-1, ...state.users.map(u => Number.isFinite(u.orderIndex) ? u.orderIndex : -1)) + 1
+  };
+
+  let createdStaffPassword='';
+  showLoading(true);
+  try {
+    if (editId) {
+      const idx = state.users.findIndex(u => u.nationalId === editId);
+      if (idx !== -1) {
+        if (data.role === 'admin' && state.currentUser.role !== 'admin') { toast('فقط ادمین ارشد می‌تواند ادمین ارشد تعیین کند.','error'); showLoading(false); return; }
+        const other = state.users.find(x => x.role === data.role && x.nationalId !== editId);
+        if (other && ['admin','senior_manager'].includes(data.role)) {
+          if (!confirm(`${roleLabel(other.role)} فعلی (${other.firstName} ${other.lastName}) به عضو تنزل یابد؟`)) { showLoading(false); return; }
+          other.role='employee'; await saveUser(other);
+        }
+        state.users[idx] = { ...state.users[idx], ...data };
+        await saveUser(state.users[idx]);
+      }
+    } else {
+      if (state.users.some(u => u.nationalId === nationalId)) {
+        toast('این کد ملی قبلاً ثبت شده است.');
+        showLoading(false);
+        return;
+      }
+      if (data.role === 'admin' && state.currentUser.role !== 'admin') { toast('فقط ادمین ارشد می‌تواند ادمین ارشد تعیین کند.','error'); showLoading(false); return; }
+      const other = state.users.find(x => x.role === data.role);
+      if (other && ['admin','senior_manager'].includes(data.role)) { if (!confirm(`${roleLabel(other.role)} فعلی به عضو تنزل یابد؟`)) { showLoading(false); return; } other.role='employee'; await saveUser(other); }
+      const staffPassword=document.getElementById('staffPassword').value.trim() || generateTemporaryPassword();
+      createdStaffPassword=staffPassword;
+      let staffCredential=null;
+      try {
+        staffCredential=await secondaryAuth.createUserWithEmailAndPassword(`${nationalId}@roomnik.app`,staffPassword);
+        data.uid=staffCredential.user.uid;
+        await saveUser(data);
+        await secondaryAuth.signOut();
+        state.users.push(data);
+      } catch (err) {
+        if (staffCredential?.user) { try { await staffCredential.user.delete(); } catch(e) { console.error('rollback failed',e); } }
+        try { await secondaryAuth.signOut(); } catch(e) {}
+        throw err;
+      }
+    }
+    closeStaffForm();
+    populateViewingUserSelect();
+    renderStaffManagerList();
+    renderStaffList();
+    if (editId) {
+      toast('اطلاعات پرسنل با موفقیت ویرایش شد.', 'success');
+    } else {
+      showNewStaffPasswordModal(data, createdStaffPassword);
+      toast('پرسنل جدید ساخته شد. رمز موقت: ' + createdStaffPassword, 'success');
+    }
+  } catch (err) {
+    toast('خطا: ' + err.message);
+  }
+  showLoading(false);
+}
+
+function copyToClipboard(text){
+  if(navigator.clipboard?.writeText)return navigator.clipboard.writeText(text);
+  return new Promise((resolve,reject)=>{const input=document.createElement('textarea');input.value=text;input.style.position='fixed';input.style.opacity='0';document.body.appendChild(input);input.focus();input.select();try{document.execCommand('copy');input.remove();resolve();}catch(err){input.remove();reject(err);}});
+}
+function showNewStaffPasswordModal(staff,password){document.getElementById('newStaffPasswordName').textContent=`${staff.firstName||''} ${staff.lastName||''}`.trim();document.getElementById('newStaffPasswordNationalId').textContent=staff.nationalId||'';document.getElementById('newStaffPasswordValue').textContent=password||'';document.getElementById('newStaffPasswordModal').classList.remove('hidden');}
+function closeNewStaffPasswordModal(){document.getElementById('newStaffPasswordModal').classList.add('hidden');}
+async function copyNewStaffPassword(){try{await copyToClipboard(document.getElementById('newStaffPasswordValue').textContent);toast('رمز موقت کپی شد.','success');}catch(err){toast('کپی خودکار انجام نشد؛ رمز را دستی کپی کنید.','error');}}
+
+async function deleteStaff(nid) {
+  if (!confirm('آیا از حذف این پرسنل مطمئن هستید؟')) return;
+  showLoading(true);
+  try {
+    await deleteUserDoc(nid);
+    state.users = state.users.filter(u => u.nationalId !== nid);
+    if (state.currentUser?.nationalId === nid) { logout(); return; }
+    Object.keys(state.shifts).forEach(key => {
+      if (key.startsWith(nid + '_')) {
+        delete state.shifts[key];
+        delete state.shiftMeta[key];
+        const parts = key.split('_');
+        if (parts.length === 4) {
+          const indexKey = `${parts[0]}_${parts[1]}_${parts[2]}`;
+          if (state.shiftIndex[indexKey]) {
+            delete state.shiftIndex[indexKey][parts[3]];
+            if (!Object.keys(state.shiftIndex[indexKey]).length) delete state.shiftIndex[indexKey];
+          }
+        }
+      }
+    });
+    populateViewingUserSelect();
+    renderStaffManagerList();
+    renderStaffList();
+    toast('پرسنل و شیفت‌های مربوطه حذف شدند.', 'success');
+  } catch (err) {
+    toast('خطا: ' + err.message);
+  }
+  showLoading(false);
+}
+
+function isOrgAdmin() { return state.currentUser && ['admin','senior_manager'].includes(state.currentUser.role); }
+function departmentName(id) { const d = state.departments.find(x => x.id === id); return d ? d.name : 'بدون بخش'; }
+function managerName(id) { const u = state.users.find(x => x.nationalId === id); return u ? `${u.firstName} ${u.lastName}` : 'بدون مدیر'; }
+function populateDepartmentSelect(id) { const el=document.getElementById(id); if(!el) return; el.innerHTML='<option value="">— بدون بخش —</option>'+state.departments.map(d=>`<option value="${d.id}">${d.name}</option>`).join(''); }
+function openOrgManager() { if(!isOrgAdmin()) return; renderOrgManager(); document.getElementById('orgManagerModal').classList.remove('hidden'); }
+function closeOrgManager() { document.getElementById('orgManagerModal').classList.add('hidden'); }
+function renderOrgManager() { renderDepartmentCards(); renderOrgMembers(); }
+function renderDepartmentCards() { const c=document.getElementById('departmentCards'); if(!c)return; const all=state.users.filter(u=>u.role!=='admin'); c.innerHTML=state.departments.map(d=>{const members=all.filter(u=>u.departmentId===d.id); return `<div class="bg-white rounded-xl border p-3 shadow-sm"><div class="flex items-start justify-between gap-2"><div><b class="text-sm text-badesaba-main">${d.name}</b><p class="text-[10px] text-gray-500 mt-1">${d.description||'بدون توضیح'}</p></div><span class="bg-rose-100 text-rose-800 rounded-full px-2 py-0.5 text-[10px] font-bold">${members.length} عضو</span></div><div class="text-[11px] mt-3 text-gray-600">مدیر: <b>${managerName(d.managerId)}</b></div><div class="flex gap-1 mt-3"><button onclick="openDepartmentForm('${d.id}')" class="flex-1 bg-blue-600 text-white rounded px-2 py-1 text-[10px] font-bold">ویرایش</button><button onclick="deleteDepartment('${d.id}')" class="bg-red-100 text-red-700 rounded px-2 py-1 text-[10px] font-bold">حذف</button></div></div>`}).join(''); }
+function renderOrgMembers() { const filter=document.getElementById('orgDepartmentFilter'); const c=document.getElementById('orgMembersList'); if(!filter||!c)return; const selected=filter.value; filter.innerHTML='<option value="">همه بخش‌ها</option>'+state.departments.map(d=>`<option value="${d.id}">${d.name}</option>`).join(''); filter.value=selected; const users=state.users.filter(u=>u.role!=='admin' && (!selected || u.departmentId===selected)); c.innerHTML=users.length?users.map(u=>`<div class="flex flex-wrap items-center justify-between gap-2 border rounded-lg p-3 bg-white"><div><b class="text-xs">${u.firstName} ${u.lastName}</b><span class="text-[10px] mr-2 px-2 py-0.5 rounded-full ${u.role==='department_manager'?'bg-amber-100 text-amber-800':'bg-gray-100 text-gray-600'}">${u.role==='department_manager'?'مدیر بخش':'عضو'}</span><div class="text-[10px] text-gray-500 mt-1">${u.position||'همکار'} — ${departmentName(u.departmentId)}</div></div><div class="flex items-center gap-1"><select onchange="moveMember('${u.nationalId}',this.value)" class="text-[10px] border rounded px-2 py-1 bg-white"><option value="">انتقال به...</option>${state.departments.map(d=>`<option value="${d.id}" ${u.departmentId===d.id?'selected':''}>${d.name}</option>`).join('')}</select><button onclick="moveMemberOrder('${u.nationalId}',-1)" class="bg-slate-500 text-white px-2 py-1 rounded text-[10px] font-bold">↑</button><button onclick="moveMemberOrder('${u.nationalId}',1)" class="bg-slate-500 text-white px-2 py-1 rounded text-[10px] font-bold">↓</button><button onclick="setDepartmentManager('${u.nationalId}')" class="bg-amber-500 text-white px-2 py-1 rounded text-[10px] font-bold">مدیر بخش</button></div></div>`).join(''):'<div class="text-xs text-gray-400 text-center py-5">عضوی در این فیلتر وجود ندارد.</div>'; }
+function openDepartmentForm(id='') { document.getElementById('departmentFormModal').classList.remove('hidden'); document.getElementById('departmentEditId').value=id; document.getElementById('departmentFormTitle').textContent=id?'ویرایش بخش':'افزودن بخش'; const d=state.departments.find(x=>x.id===id); document.getElementById('departmentName').value=d?.name||''; document.getElementById('departmentDescription').value=d?.description||''; const sel=document.getElementById('departmentManager'); sel.innerHTML='<option value="">— بدون مدیر —</option>'+state.users.filter(u=>u.role!=='admin').map(u=>`<option value="${u.nationalId}" ${d?.managerId===u.nationalId?'selected':''}>${u.firstName} ${u.lastName}</option>`).join(''); }
+function closeDepartmentForm(){document.getElementById('departmentFormModal').classList.add('hidden');}
+async function saveDepartment(e){
+  e.preventDefault(); const name=document.getElementById('departmentName').value.trim(); if(!name)return;
+  const id=document.getElementById('departmentEditId').value||('dept-'+Date.now()); const old=state.departments.find(d=>d.id===id);
+  const item={id,name,description:document.getElementById('departmentDescription').value.trim(),managerId:document.getElementById('departmentManager').value};
+  if(old)Object.assign(old,item);else state.departments.push(item); await saveDepartments();
+  const f=document.getElementById('staffDepartmentFilter'); if(f)f.dataset.loaded='0';
+  const rf=document.getElementById('reportDepartment'); if(rf)rf.dataset.loaded='0';
+  closeDepartmentForm(); renderOrgManager(); populateDepartmentSelect('staffDepartment'); populateStaffListFilters(); renderStaffList(); toast('بخش با موفقیت ذخیره شد.');
+}
+async function deleteDepartment(id){if(!confirm('این بخش حذف شود؟ اعضای آن بدون بخش باقی می‌مانند.'))return; const affected=state.users.filter(u=>u.departmentId===id); const previousDepartments=[...state.departments]; const previousIds=affected.map(u=>({u,id:u.departmentId})); state.departments=state.departments.filter(d=>d.id!==id); affected.forEach(u=>u.departmentId=''); try{await Promise.all(affected.map(saveUser)); await saveDepartments(); renderOrgManager();}catch(err){state.departments=previousDepartments; previousIds.forEach(x=>x.u.departmentId=x.id); toast('خطا در حذف بخش: '+err.message,'error');}}
+async function moveMember(nid,deptId){ if(!deptId)return; const u=state.users.find(x=>x.nationalId===nid); if(!u)return; u.departmentId=deptId; if(u.role==='department_manager')u.role='employee'; await saveUser(u); renderOrgManager(); renderStaffList(); }
+async function setDepartmentManager(nid){ const u=state.users.find(x=>x.nationalId===nid); if(!u)return; const d=state.departments.find(x=>x.id===u.departmentId); if(!d){toast('ابتدا برای این عضو یک بخش انتخاب کنید.','error');return;} const demoted=state.users.filter(x=>x.role==='department_manager' && x.nationalId!==nid && x.departmentId===d.id); const batch=db.batch(); demoted.forEach(x=>{const {nationalId,...data}=x; batch.set(db.collection('users').doc(nationalId),{...data,role:'employee'},{merge:true});}); const {nationalId,...data}=u; batch.set(db.collection('users').doc(nid),{...data,role:'department_manager'},{merge:true}); batch.set(db.collection('config').doc('departments'),{items:state.departments}); try{await batch.commit(); demoted.forEach(x=>x.role='employee'); u.role='department_manager'; d.managerId=nid; renderOrgManager(); renderStaffManagerList(); toast('مدیر بخش تعیین شد.','success');}catch(err){toast('خطا در تعیین مدیر بخش: '+err.message,'error');} }
+
+async function moveMemberOrder(nid, direction){const u=state.users.find(x=>x.nationalId===nid);if(!u)return;const peers=state.users.filter(x=>x.departmentId===u.departmentId).sort((a,b)=>(a.orderIndex||0)-(b.orderIndex||0));const i=peers.findIndex(x=>x.nationalId===nid),j=i+direction;if(j<0||j>=peers.length)return;const temp=peers[i].orderIndex ?? i;peers[i].orderIndex=peers[j].orderIndex ?? j;peers[j].orderIndex=temp;await Promise.all([saveUser(peers[i]),saveUser(peers[j])]);renderOrgManager();renderStaffList();}
+
+function openHolidayManager() {
+  if (!state.currentUser || !['admin','senior_manager'].includes(state.currentUser.role)) return;
+  renderHolidayList();
+  document.getElementById('holidayManagerModal').classList.remove('hidden');
+}
+function closeHolidayManager() { document.getElementById('holidayManagerModal').classList.add('hidden'); }
+
+function renderHolidayList() {
+  const c = document.getElementById('holidayList');
+  if (!c) return;
+  const keys = Object.keys(state.holidays).sort((a, b) => {
+    const [ma, da] = a.split('-').map(Number);
+    const [mb, db] = b.split('-').map(Number);
+    return ma !== mb ? ma - mb : da - db;
+  });
+  if (keys.length === 0) {
+    c.innerHTML = '<p class="text-gray-400 text-center py-3">هیچ تعطیلی ثبت نشده.</p>';
+    return;
+  }
+  let html = '';
+  keys.forEach(k => {
+    const [m, d] = k.split('-');
+    html += `
+      <div class="flex items-center justify-between p-2 border rounded-lg bg-gray-50">
+        <span class="font-bold">${d} ${monthNames[parseInt(m) - 1]} — ${state.holidays[k]}</span>
+        <button onclick="removeHoliday('${k}')" class="bg-red-500 hover:bg-red-600 text-white px-2 py-0.5 rounded text-[10px] font-bold">حذف</button>
+      </div>`;
+  });
+  c.innerHTML = html;
+}
+
+async function addHoliday() {
+  const month = parseInt(document.getElementById('holidayMonth').value);
+  const day = parseInt(document.getElementById('holidayDay').value);
+  const title = document.getElementById('holidayTitle').value.trim();
+  if (!month || month < 1 || month > 12 || !day || day < 1 || day > 31 || !title) {
+    toast('لطفاً ماه، روز و عنوان را درست وارد کنید.');
+    return;
+  }
+  state.holidays[`${month}-${day}`] = title;
+  showLoading(true);
+  try {
+    await saveHolidaysToCloud();
+    document.getElementById('holidayMonth').value = '';
+    document.getElementById('holidayDay').value = '';
+    document.getElementById('holidayTitle').value = '';
+    renderHolidayList();
+    renderCalendar();
+  } catch (err) {
+    toast('خطا: ' + err.message);
+  }
+  showLoading(false);
+}
+
+async function removeHoliday(key) {
+  if (!confirm('حذف این تعطیلی؟')) return;
+  delete state.holidays[key];
+  showLoading(true);
+  try {
+    await saveHolidaysToCloud();
+    renderHolidayList();
+    renderCalendar();
+  } catch (err) {
+    toast('خطا: ' + err.message);
+  }
+  showLoading(false);
+}
+
+function openReportsManager() {
+  if (!state.currentUser || !['admin','senior_manager','department_manager'].includes(state.currentUser.role)) return;
+  const month=document.getElementById('reportMonth'); month.innerHTML=monthNames.map((m,i)=>`<option value="${i+1}" ${i+1===state.currentMonth?'selected':''}>${m}</option>`).join('');
+  const dep=document.getElementById('reportDepartment'); dep.innerHTML='<option value="">همه بخش‌ها</option>'+state.departments.map(d=>`<option value="${d.id}">${d.name}</option>`).join('');
+  document.getElementById('reportYear').value=state.currentYear; const personDep=document.getElementById('personDepartment'); if(personDep) personDep.innerHTML='<option value="">همه بخش‌ها</option>'+state.departments.map(d=>`<option value="${d.id}">${d.name}</option>`).join('');
+  if(state.currentUser.role==='department_manager'){const managerDept=state.currentUser.departmentId||''; if(dep){dep.value=managerDept;dep.disabled=true;} if(personDep){personDep.value=managerDept;personDep.disabled=true;}} else {if(dep)dep.disabled=false;if(personDep)personDep.disabled=false;}
+  document.getElementById('reportsManagerModal').classList.remove('hidden'); previewReport();
+}
+function closeReportsManager(){document.getElementById('reportsManagerModal').classList.add('hidden');}
+function getReportRows(){
+ const year=+document.getElementById('reportYear').value||state.currentYear, month=+document.getElementById('reportMonth').value||state.currentMonth; let dep=document.getElementById('reportDepartment').value; if(state.currentUser?.role==='department_manager') dep=state.currentUser.departmentId||''; const pos=document.getElementById('reportPosition').value.trim().toLowerCase(), emp=document.getElementById('reportEmployment').value, role=document.getElementById('reportRole').value, shift=document.getElementById('reportShift').value;
+ const users=state.users.filter(u=>u.role!=='admin' && (!dep||u.departmentId===dep) && (!pos||(u.position||'').toLowerCase().includes(pos)) && (!emp||u.employmentType===emp) && (!role||u.role===role)); const days=getDaysInJalaliMonth(year,month), rows=[];
+ users.forEach(u=>{for(let d=1;d<=days;d++){const code=state.shifts[`${u.nationalId}_${year}_${month}_${d}`]||''; if(code && (!shift||code===shift)) rows.push({year,month,day:d,code,user:u});}}); return {year,month,users,rows,days};
+}
+function reportUserLabel(u){return `${u.firstName} ${u.lastName}`;}
+function previewReport(){const out=document.getElementById('reportPreview'); if(!out)return; const r=getReportRows(), mode=document.getElementById('reportMode').value; let html=''; if(mode==='department'){const map={}; r.users.forEach(u=>{const k=departmentName(u.departmentId);map[k]=(map[k]||0)+1;}); html='<table class="w-full text-xs border-collapse"><thead><tr class="bg-indigo-100"> <th class="border p-2">ردیف</th><th class="border p-2">بخش</th><th class="border p-2">تعداد اعضا</th></tr></thead><tbody>'+Object.entries(map).map((x,i)=>`<tr><td class="border p-2">${i+1}</td><td class="border p-2">${x[0]}</td><td class="border p-2">${x[1]}</td></tr>`).join('')+'</tbody></table>';} else if(mode==='summary'){html='<table class="w-full text-xs border-collapse"><thead><tr class="bg-indigo-100"><th class="border p-2">ردیف</th><th class="border p-2">نام</th><th class="border p-2">بخش</th><th class="border p-2">سمت</th><th class="border p-2">تعداد شیفت</th></tr></thead><tbody>'+r.users.map((u,i)=>`<tr><td class="border p-2">${i+1}</td><td class="border p-2">${reportUserLabel(u)}</td><td class="border p-2">${departmentName(u.departmentId)}</td><td class="border p-2">${u.position||''}</td><td class="border p-2">${r.rows.filter(x=>x.user.nationalId===u.nationalId&&x.code).length}</td></tr>`).join('')+'</tbody></table>';} else {html='<table class="w-full text-xs border-collapse"><thead><tr class="bg-indigo-100"><th class="border p-2">ردیف</th><th class="border p-2">تاریخ</th><th class="border p-2">نام</th><th class="border p-2">بخش</th><th class="border p-2">کد شیفت</th></tr></thead><tbody>'+r.rows.slice(0,150).map((x,i)=>`<tr><td class="border p-2">${i+1}</td><td class="border p-2">${x.day} ${monthNames[x.month-1]} ${x.year}</td><td class="border p-2">${reportUserLabel(x.user)}</td><td class="border p-2">${departmentName(x.user.departmentId)}</td><td class="border p-2">${x.code||'—'}</td></tr>`).join('')+'</tbody></table>';} const shown=mode==='detail'?Math.min(150,r.rows.length):r.rows.length; const note=mode==='detail'&&r.rows.length>150?` فقط ۱۵۰ ردیف از ${r.rows.length} ردیف نمایش داده شده؛ خروجی اکسل کامل است.`:''; out.innerHTML=`<div class="text-[11px] text-gray-500 mb-2">${r.users.length} عضو، ${r.rows.length} رکورد قابل نمایش.${note}</div>`+html; renderReportCharts(r);}
+let activeReportCharts={};
+function renderReportCharts(report){
+  const area=document.getElementById('reportCharts'); if(!area)return;
+  if(typeof Chart==='undefined'){area.classList.add('hidden');return;} area.classList.remove('hidden');
+  Object.values(activeReportCharts).forEach(chart=>chart.destroy()); activeReportCharts={};
+  const shiftCounts={}; report.rows.forEach(row=>{if(row.code)shiftCounts[row.code]=(shiftCounts[row.code]||0)+1;});
+  const departments={}; report.rows.forEach(row=>{const name=departmentName(row.user.departmentId); departments[name]=(departments[name]||0)+1;});
+  const colors=['#800020','#D4AF37','#2563eb','#059669','#7c3aed','#ea580c','#0891b2','#db2777','#64748b','#16a34a'];
+  const shiftCanvas=document.getElementById('shiftDistributionChart'); const deptCanvas=document.getElementById('departmentShiftChart');
+  if(shiftCanvas) activeReportCharts.shift=new Chart(shiftCanvas,{type:'doughnut',data:{labels:Object.keys(shiftCounts).length?Object.keys(shiftCounts):['بدون شیفت'],datasets:[{data:Object.keys(shiftCounts).length?Object.values(shiftCounts):[1],backgroundColor:colors,borderWidth:2,borderColor:'#fff'}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{position:'bottom',labels:{font:{family:'Vazirmatn'}}},tooltip:{rtl:true}}}});
+  if(deptCanvas) { const labels=Object.keys(departments), values=Object.values(departments); activeReportCharts.department=new Chart(deptCanvas,{type:'bar',data:{labels:labels.length?labels:['داده‌ای وجود ندارد'],datasets:[{label:'تعداد شیفت',data:labels.length?values:[0],backgroundColor:'#800020',borderRadius:6}]},options:{responsive:true,maintainAspectRatio:false,scales:{y:{beginAtZero:true,ticks:{precision:0}}},plugins:{legend:{display:false},tooltip:{rtl:true}}}}); }
+}
+function reportSheet(rows,name){if(!rows||!rows.length) rows=[['گزارشی برای نمایش وجود ندارد']]; const ws=XLSX.utils.aoa_to_sheet(rows); ws['!rtl']=true; ws['!cols']=rows[0].map((_,i)=>({wch:i===0?7:20})); const range=XLSX.utils.decode_range(ws['!ref']); const borderStyle={top:{style:'thin',color:{rgb:'B7B7B7'}},bottom:{style:'thin',color:{rgb:'B7B7B7'}},left:{style:'thin',color:{rgb:'B7B7B7'}},right:{style:'thin',color:{rgb:'B7B7B7'}}}; for(let R=range.s.r;R<=range.e.r;R++)for(let C=range.s.c;C<=range.e.c;C++){const cell=ws[XLSX.utils.encode_cell({r:R,c:C})]; if(!cell)continue; const styleObj={alignment:{horizontal:'right',vertical:'center'},border:borderStyle}; if(R===0)styleObj.fill={fgColor:{rgb:'DDEBF7'}}; cell.s=styleObj;} return ws;}
+function getPersonnelRows(){ const search=(document.getElementById('personSearch')?.value||'').trim().toLowerCase(); let dep=document.getElementById('personDepartment')?.value||''; if(state.currentUser?.role==='department_manager') dep=state.currentUser.departmentId||''; const pos=(document.getElementById('personPosition')?.value||'').trim().toLowerCase(); const emp=document.getElementById('personEmployment')?.value||''; const gender=document.getElementById('personGender')?.value||''; const education=document.getElementById('personEducation')?.value||''; const status=document.getElementById('personStatus')?.value||'all'; const from=parseJalaliDate(document.getElementById('personDateFrom')?.value||''); const to=parseJalaliDate(document.getElementById('personDateTo')?.value||''); const nearDays=+(document.getElementById('personNearDays')?.value||90); const todayN=jalaliDateToNumber(getTodayJalali().jy,getTodayJalali().jm,getTodayJalali().jd); const nearTo=todayN+nearDays; return state.users.filter(u=>{const start=parseJalaliDate(u.startDate),end=parseJalaliDate(u.endDate); const name=`${u.firstName} ${u.lastName} ${u.nationalId}`.toLowerCase(); const inRange=(v)=>v!==null&&(!from||v>=from)&&(!to||v<=to); const activeStatus=status==='new'?inRange(start):status==='ended'?inRange(end):status==='near_end'?end!==null&&end>=todayN&&end<=nearTo:true; return u.role!=='admin'&&(!search||name.includes(search))&&(!dep||u.departmentId===dep)&&(!pos||(u.position||'').toLowerCase().includes(pos)||(u.fieldOfStudy||'').toLowerCase().includes(pos))&&(!emp||u.employmentType===emp)&&(!gender||u.gender===gender)&&(!education||u.educationLevel===education)&&activeStatus;}); }
+let personnelCharts={};
+function personnelGroups(rows,key){const out={}; rows.forEach(u=>{const value=key==='department'?departmentName(u.departmentId):key==='position'?(u.position||'بدون سمت'):key==='field'?(u.fieldOfStudy||'بدون رشته'):(u.employmentType||'نامشخص'); out[value]=(out[value]||0)+1;}); return out;}
+function renderPersonnelCharts(rows){if(typeof Chart==='undefined')return; Object.values(personnelCharts).forEach(c=>c.destroy()); personnelCharts={}; const groups={employment:personnelGroups(rows,'employment'),department:personnelGroups(rows,'department'),gender:{'مرد':rows.filter(u=>u.gender==='آقای').length,'زن':rows.filter(u=>u.gender==='خانم').length},education:{}}; rows.forEach(u=>{const k=u.educationLevel||'نامشخص';groups.education[k]=(groups.education[k]||0)+1;}); const colors=['#800020','#D4AF37','#2563eb','#059669','#7c3aed','#ea580c','#0891b2','#db2777','#64748b']; const make=(id,type,group,label,color)=>{const el=document.getElementById(id);if(!el)return;const labels=Object.keys(group).filter(k=>group[k]>0);personnelCharts[id]=new Chart(el,{type,data:{labels:labels.length?labels:['بدون داده'],datasets:[{label,data:labels.length?labels.map(k=>group[k]):[0],backgroundColor:colors,borderRadius:6,borderWidth:type==='doughnut'?2:0,borderColor:'#fff'}]},options:{responsive:true,maintainAspectRatio:false,scales:type==='bar'?{y:{beginAtZero:true,ticks:{precision:0}}}:undefined,plugins:{legend:{display:type==='doughnut',position:'bottom',labels:{font:{family:'Vazirmatn'}}}}}});}; make('personEmploymentChart','doughnut',groups.employment,'تعداد'); make('personDepartmentChart','bar',groups.department,'تعداد پرسنل','#059669'); make('personGenderChart','doughnut',groups.gender,'تعداد'); make('personEducationChart','bar',groups.education,'تعداد','#2563eb');}
+function previewPersonnelReport(){const out=document.getElementById('personPreview'); if(!out)return; const rows=getPersonnelRows(),mode=document.getElementById('personReportMode')?.value||'directory'; let html=''; if(mode==='directory'){html='<table class="w-full text-xs border-collapse"><thead><tr class="bg-emerald-100"><th class="border p-2">ردیف</th><th class="border p-2">نام</th><th class="border p-2">کد ملی</th><th class="border p-2">بخش</th><th class="border p-2">رشته تحصیلی</th><th class="border p-2">مقطع</th><th class="border p-2">سمت</th><th class="border p-2">نوع استخدام</th><th class="border p-2">شروع کار</th><th class="border p-2">پایان کار</th><th class="border p-2">آخرین ویرایش شیفت</th></tr></thead><tbody>'+rows.map((u,i)=>`<tr><td class="border p-2">${i+1}</td><td class="border p-2">${reportUserLabel(u)}</td><td class="border p-2">${u.nationalId}</td><td class="border p-2">${departmentName(u.departmentId)}</td><td class="border p-2">${u.fieldOfStudy||'—'}</td><td class="border p-2">${u.educationLevel||'—'}</td><td class="border p-2">${u.position||'—'}</td><td class="border p-2">${u.employmentType||'—'}</td><td class="border p-2">${u.startDate||'—'}</td><td class="border p-2">${u.endDate||'—'}</td><td class="border p-2">${formatEditTime(lastShiftEditFor(u.nationalId))||'—'}</td></tr>`).join('')+'</tbody></table>';} else {const groups=personnelGroups(rows,mode==='department'?'department':mode==='position'?'position':mode==='field'?'field':'employment'); html='<table class="w-full text-xs border-collapse"><thead><tr class="bg-emerald-100"><th class="border p-2">ردیف</th><th class="border p-2">گروه</th><th class="border p-2">تعداد</th><th class="border p-2">درصد</th></tr></thead><tbody>'+Object.entries(groups).map((x,i)=>`<tr><td class="border p-2">${i+1}</td><td class="border p-2">${x[0]}</td><td class="border p-2">${x[1]}</td><td class="border p-2">${rows.length?((x[1]/rows.length)*100).toFixed(1):0}%</td></tr>`).join('')+'</tbody></table>';} out.innerHTML=`<div class="text-[11px] text-gray-500 mb-2">${rows.length} نفر مطابق فیلتر</div>`+html; renderPersonnelCharts(rows);}
+function exportPersonnelReport(){const rows=getPersonnelRows(),mode=document.getElementById('personReportMode')?.value||'directory',data=[]; if(mode==='directory'){data.push(['ردیف','کد ملی','نام و نام خانوادگی','بخش','رشته تحصیلی','مقطع','سمت','نوع استخدام','جنسیت','شروع کار','پایان کار','آخرین ویرایش شیفت','تلفن','ایمیل']);rows.forEach((u,i)=>data.push([i+1,u.nationalId,reportUserLabel(u),departmentName(u.departmentId),u.fieldOfStudy||'',u.educationLevel||'',u.position||'',u.employmentType||'',u.gender||'',u.startDate||'',u.endDate||'',formatEditTime(lastShiftEditFor(u.nationalId))||'',u.phone||'',u.email||'']));}else{const groups=personnelGroups(rows,mode==='department'?'department':mode==='position'?'position':mode==='field'?'field':'employment');data.push(['ردیف','گروه','تعداد','درصد']);Object.entries(groups).forEach((x,i)=>data.push([i+1,x[0],x[1],rows.length?`${((x[1]/rows.length)*100).toFixed(1)}%`:'0%']));} const wb=XLSX.utils.book_new(); XLSX.utils.book_append_sheet(wb,reportSheet(data,'گزارش پرسنل'),'گزارش پرسنل'); XLSX.writeFile(wb,'گزارش_جامع_پرسنل.xlsx');}
+
+function exportFilteredReport(){const r=getReportRows(), mode=document.getElementById('reportMode').value, rows=[]; if(mode==='department'){const map={};r.users.forEach(u=>{const k=departmentName(u.departmentId);map[k]=(map[k]||0)+1;});rows.push(['ردیف','بخش','تعداد اعضا']);Object.entries(map).forEach((x,i)=>rows.push([i+1,x[0],x[1]]));}else if(mode==='summary'){rows.push(['ردیف','کد ملی','نام و نام خانوادگی','بخش','سمت','نوع استخدام','جمع شیفت']);r.users.forEach((u,i)=>rows.push([i+1,u.nationalId,reportUserLabel(u),departmentName(u.departmentId),u.position||'',u.employmentType||'',r.rows.filter(x=>x.user.nationalId===u.nationalId&&x.code).length]));}else{rows.push(['ردیف','سال','ماه','روز','کد ملی','نام و نام خانوادگی','بخش','سمت','کد شیفت']);r.rows.forEach((x,i)=>rows.push([i+1,x.year,monthNames[x.month-1],x.day,x.user.nationalId,reportUserLabel(x.user),departmentName(x.user.departmentId),x.user.position||'',x.code||'']));} const wb=XLSX.utils.book_new();XLSX.utils.book_append_sheet(wb,reportSheet(rows,'گزارش'),'گزارش');XLSX.writeFile(wb,`گزارش_فیلترشده_${r.year}_${r.month}.xlsx`);}
+function exportAllShiftReports(){
+  if (!state.currentUser || !['admin','senior_manager','department_manager'].includes(state.currentUser.role)) { toast('شما دسترسی لازم برای این خروجی را ندارید.', 'error'); return; }
+  const deptFilter=state.currentUser.role==='department_manager'?(state.currentUser.departmentId||''):'';
+  const rows=[['ردیف','سال','ماه','روز','کد ملی','نام و نام خانوادگی','بخش','سمت','کد شیفت']]; let n=1;
+  Object.entries(state.shifts).forEach(([key,code])=>{const parts=key.split('_'); if(parts.length!==4)return; const [nid,year,month,day]=parts; const u=state.users.find(x=>x.nationalId===nid); if(!u||u.role==='admin'||(deptFilter&&u.departmentId!==deptFilter))return; rows.push([n++,year,monthNames[Number(month)-1]||month,day,nid,reportUserLabel(u),departmentName(u.departmentId),u.position||'',code||'']);});
+  const wb=XLSX.utils.book_new(); XLSX.utils.book_append_sheet(wb,reportSheet(rows,'همه شیفت‌ها'),'همه شیفت‌ها'); XLSX.writeFile(wb,'گزارش_کامل_همه_شیفت‌های_تاریخی.xlsx');
+}
+
+function excelCol(n){let s='';while(n>0){let r=(n-1)%26;s=String.fromCharCode(65+r)+s;n=Math.floor((n-1)/26);}return s;}
+function normalizeGender(value){const v=String(value||'').trim().toLowerCase();if(['خانم','زن','female','f'].includes(v))return 'خانم';if(['آقای','آقا','مرد','male','m'].includes(v))return 'آقای';return 'نامشخص';}
+function shiftCodeTitle(code){const item=typeof SHIFT_MAP!=='undefined'?SHIFT_MAP[code]:null;return item?.title?`${code} — ${item.title}`:code;}
+function monthlyShiftUsers(users){return [...users].sort((a,b)=>{const rank=u=>u.position==='سرپرستار'?0:u.position==='جانشین سرپرستار'?1:2;const r=rank(a)-rank(b);if(r)return r;const p=String(a.position||'').localeCompare(String(b.position||''),'fa',{sensitivity:'base'});if(p)return p;const n=`${a.firstName||''} ${a.lastName||''}`.localeCompare(`${b.firstName||''} ${b.lastName||''}`,'fa',{sensitivity:'base'});return n||String(a.nationalId).localeCompare(String(b.nationalId),'fa',{numeric:true});});}
+function monthlyShiftCount(nid, code){
+  const monthIndex=state.shiftIndex?.[`${nid}_${state.currentYear}_${state.currentMonth}`]||{};
+  return Object.values(monthIndex).filter(value=>String(value||'').trim()===code).length;
+}
+function excelEscapeFormulaText(value){return String(value).replace(/"/g,'""');}
+function openComprehensiveExportModal(){
+  if(!['admin','senior_manager','department_manager'].includes(state.currentUser?.role)){toast('شما دسترسی لازم برای این خروجی را ندارید.','error');return;}
+  if(state.currentUser.role==='department_manager'){const deptId=state.currentUser.departmentId||''; exportComprehensiveMonthWorkbook(deptId,departmentName(deptId)); return;}
+  const modal=document.getElementById('comprehensiveExportModal'),select=document.getElementById('comprehensiveExportDepartment');
+  if(!modal||!select)return;
+  const departments=[...state.departments].sort((a,b)=>String(a.name||'').localeCompare(String(b.name||''),'fa'));
+  select.innerHTML='<option value="">همه بخش‌ها</option>'+departments.map(d=>`<option value="${String(d.id).replace(/"/g,'&quot;')}">${d.name}</option>`).join('');
+  select.value=''; modal.classList.remove('hidden');
+}
+function closeComprehensiveExportModal(){document.getElementById('comprehensiveExportModal')?.classList.add('hidden');}
+function confirmComprehensiveExport(){
+  const select=document.getElementById('comprehensiveExportDepartment');
+  const deptId=select?.value||''; const dept=state.departments.find(d=>d.id===deptId); const deptName=dept?.name||'همه بخش‌ها';
+  closeComprehensiveExportModal(); exportComprehensiveMonthWorkbook(deptId,deptName);
+}
+async function exportComprehensiveMonthWorkbook(deptId='',deptName='همه بخش‌ها'){
+  const allowedRoles=['admin','senior_manager','department_manager'];
+  if(!allowedRoles.includes(state.currentUser?.role)){toast('شما دسترسی لازم برای این خروجی را ندارید.','error');return;}
+  const isDeptManagerOnly=state.currentUser.role==='department_manager';
+  if(isDeptManagerOnly){deptId=state.currentUser.departmentId||'';deptName=departmentName(deptId);}
+  if(typeof XLSX==='undefined'){toast('کتابخانه xlsx-js-style در دسترس نیست.','error');return;}
+  const year=state.currentYear,month=state.currentMonth,days=getDaysInJalaliMonth(year,month);
+  const users=monthlyShiftUsers(state.users.filter(u=>!deptId||u.departmentId===deptId));
+  showLoading(true);
+  try{
+    const records=new Map(),refs=[];
+    users.forEach(u=>{for(let d=1;d<=days;d++)refs.push({u,d,ref:db.collection('shifts').doc(`${u.nationalId}_${year}_${month}_${d}`)});});
+    const docs=await Promise.all(refs.map(x=>x.ref.get()));
+    docs.forEach((doc,i)=>{const x=refs[i];records.set(`${x.u.nationalId}_${x.d}`,doc.exists?String(doc.data().code||'').trim():'');});
+    const headers=['ردیف','کد ملی','جنسیت','نام','نام خانوادگی','سمت','نوع استخدام','بخش مربوطه'];for(let d=1;d<=days;d++)headers.push(String(d));
+    headers.push('جمع کل شیفت صبح','جمع کل شیفت عصر','جمع کل شیفت شب','جمع کل آف','جمع کل مرخصی','جمع کل عصر+شب','جمع کل سایر');
+    const title=`گزارش جامع شیفت‌های ${deptName} - ${monthNames[month-1]} ${year}`;
+    const rows=[Array(headers.length).fill('')]; rows[0][0]=title; rows.push(headers);
+    const firstDayCol=9,lastDayCol=8+days,dayRange=r=>`${excelCol(firstDayCol)}${r}:${excelCol(lastDayCol)}${r}`;
+    const standard=['M','E','N','MN','EN','MEN','O','H','S'];
+    users.forEach((u,i)=>{const r=i+3,row=[i+1,u.nationalId,normalizeGender(u.gender),u.firstName||'',u.lastName||'',u.position||'',u.employmentType||'',departmentName(u.departmentId)];for(let d=1;d<=days;d++)row.push(records.get(`${u.nationalId}_${d}`)||'');rows.push(row);const range=dayRange(r),cnt=c=>`COUNTIF(${range},"${excelEscapeFormulaText(c)}")`;row.push({f:`SUM(${cnt('M')},${cnt('MN')},${cnt('MEN')})`},{f:`SUM(${cnt('E')},${cnt('EN')},${cnt('MEN')})`},{f:`SUM(${cnt('N')},${cnt('MN')},${cnt('EN')},${cnt('MEN')})`},{f:cnt('O')},{f:`SUM(${cnt('H')},${cnt('S')})`},{f:cnt('EN')},{f:`COUNTA(${range})-SUM(${standard.map(cnt).join(',')})`});});
+    const totalRow=rows.length+1,total=['جمع کل پرسنل','','','','','','',''];for(let d=1;d<=days;d++)total.push('');for(let c=9;c<=15+days;c++){const col=excelCol(c);total.push({f:`SUM(${col}2:${col}${totalRow-1})`});}rows.push(total);
+    const ws=XLSX.utils.aoa_to_sheet(rows);ws['!rtl']=true;ws['!freeze']={xSplit:8,ySplit:2};ws['!autofilter']={ref:`A2:${excelCol(headers.length)}${totalRow-1}`};ws['!merges']=[{s:{r:0,c:0},e:{r:0,c:headers.length-1}}];ws['!cols']=headers.map((h,i)=>({wch:i<2?16:i<8?18:i<=8+days?7:18}));
+    const border={top:{style:'thin',color:{rgb:'B7B7B7'}},bottom:{style:'thin',color:{rgb:'B7B7B7'}},left:{style:'thin',color:{rgb:'B7B7B7'}},right:{style:'thin',color:{rgb:'B7B7B7'}}};const summaryStart=9+days;
+    const range=XLSX.utils.decode_range(ws['!ref']);for(let R=range.s.r;R<=range.e.r;R++)for(let C=range.s.c;C<=range.e.c;C++){const cell=ws[XLSX.utils.encode_cell({r:R,c:C})];if(!cell)continue;cell.s={alignment:{horizontal:'right',vertical:'center',wrap_text:true},border,fill:R===0?{fgColor:{rgb:'BDD7EE'}}:R===1?{fgColor:{rgb:'D9EAF7'}}:R===totalRow-1?{fgColor:{rgb:'E2F0D9'}}:C>=summaryStart?{fgColor:{rgb:'FFF2CC'}}:{}};}
+    ws['!rows']=Array.from({length:rows.length},(_,i)=>({hpx:i===0?30:i===1?34:22}));const wb=XLSX.utils.book_new();wb.Workbook={Views:[{RTL:true}]};XLSX.utils.book_append_sheet(wb,ws,'شیفت‌های جامع');XLSX.writeFile(wb,`شیفتهای جامع ${monthNames[month-1]} ${year} - ${deptName}.xlsx`);toast('خروجی اکسل جامع با موفقیت آماده شد.','success');
+  }catch(err){console.error(err);toast('خطا در ساخت خروجی جامع: '+err.message,'error');}finally{showLoading(false);}
+}
+async function exportCurrentMonthShiftWorkbook(){
+  if(!state.currentUser){toast('ابتدا وارد حساب کاربری شوید.','error');return;}
+  if(typeof XLSX==='undefined'){toast('کتابخانه Excel در دسترس نیست.','error');return;}
+  const year=state.currentYear, month=state.currentMonth, days=getDaysInJalaliMonth(year,month), users=monthlyShiftUsers([...state.users]);
+  showLoading(true);
+  try{
+    const records=new Map(), codes=new Set();
+    const refs=[];
+    users.forEach(u=>{for(let d=1;d<=days;d++)refs.push({u,d,ref:db.collection('shifts').doc(`${u.nationalId}_${year}_${month}_${d}`)});});
+    const docs=await Promise.all(refs.map(x=>x.ref.get()));
+    docs.forEach((doc,i)=>{const x=refs[i],code=doc.exists?String(doc.data().code||'').trim():'';records.set(`${x.u.nationalId}_${x.d}`,code);if(code)codes.add(code);});
+    const sortedCodes=[...codes].sort((a,b)=>a.localeCompare(b,'fa',{numeric:true}));
+    const known={M:['M'],E:['E'],N:['N'],O:['O'],H:['H'],S:['S']};
+    const combined={morning:['M','MN','MEN'],evening:['E','EN','MEN'],night:['N','MN','EN','MEN'],off:['O'],leave:['H','S']};
+    const headers=['ردیف','کد ملی','جنسیت','نام','نام خانوادگی','سمت','نوع استخدام','بخش مربوطه'];
+    for(let d=1;d<=days;d++)headers.push(`روز ${d}`);
+    headers.push('جمع کل شیفت‌های صبح','جمع کل شیفت‌های عصر','جمع کل شیفت‌های شب','تعداد آف','تعداد مرخصی','تعداد استراحت یا سایر وضعیت‌ها','سایر');
+    sortedCodes.forEach(c=>headers.push(`تعداد ${shiftCodeTitle(c)}`));
+    const rows=[headers];
+    const firstDayCol=9,lastDayCol=8+days,dayRange=(r)=>`${excelCol(firstDayCol)}${r}:${excelCol(lastDayCol)}${r}`;
+    users.forEach((u,i)=>{const r=i+2,row=[i+1,u.nationalId,normalizeGender(u.gender),u.firstName||'',u.lastName||'',u.position||'',u.employmentType||'',departmentName(u.departmentId)];for(let d=1;d<=days;d++)row.push(records.get(`${u.nationalId}_${d}`)||'');rows.push(row);const range=dayRange(r);const countCodes=arr=>`SUM(${arr.map(c=>`COUNTIF(${range},"${c}")`).join(',')||'0'})`;row.push({f:countCodes(combined.morning)},{f:countCodes(combined.evening)},{f:countCodes(combined.night)},{f:`COUNTIF(${range},"O")`},{f:`SUM(COUNTIF(${range},"H"),COUNTIF(${range},"S"))`},{f:`COUNTIF(${range},"*")-COUNTIF(${range},"M")-COUNTIF(${range},"E")-COUNTIF(${range},"N")-COUNTIF(${range},"MN")-COUNTIF(${range},"EN")-COUNTIF(${range},"MEN")-COUNTIF(${range},"O")-COUNTIF(${range},"H")-COUNTIF(${range},"S")`},{f:`COUNTIF(${range},"*")-COUNTIF(${range},"M")-COUNTIF(${range},"E")-COUNTIF(${range},"N")-COUNTIF(${range},"MN")-COUNTIF(${range},"EN")-COUNTIF(${range},"MEN")-COUNTIF(${range},"O")-COUNTIF(${range},"H")-COUNTIF(${range},"S")`});sortedCodes.forEach(c=>row.push({f:`COUNTIF(${range},"${c}")`}));});
+    const totalRow=rows.length+1,total=['جمع کل پرسنل','','','','','','',''];for(let c=9;c<=8+days;c++)total.push('');const sumStart=9,sumEnd=15+sortedCodes.length;for(let c=sumStart;c<=sumEnd;c++){const col=excelCol(c);total.push({f:`SUM(${col}2:${col}${totalRow-1})`});}rows.push(total);
+    const ws=XLSX.utils.aoa_to_sheet(rows);ws['!rtl']=true;ws['!freeze']={xSplit:8,ySplit:1};ws['!autofilter']={ref:`A1:${excelCol(headers.length)}${totalRow-1}`};ws['!cols']=headers.map((h,i)=>({wch:i<2?16:i<8?18:i<=8+days?8:18}));
+    const range=XLSX.utils.decode_range(ws['!ref']);for(let R=range.s.r;R<=range.e.r;R++)for(let C=range.s.c;C<=range.e.c;C++){const cell=ws[XLSX.utils.encode_cell({r:R,c:C})];if(!cell)continue;cell.s={alignment:{horizontal:'right',vertical:'center',wrap_text:true},border:{top:{style:'thin',color:{rgb:'B7B7B7'}},bottom:{style:'thin',color:{rgb:'B7B7B7'}},left:{style:'thin',color:{rgb:'B7B7B7'}},right:{style:'thin',color:{rgb:'B7B7B7'}}},fill:R===0?{fgColor:{rgb:'D9EAF7'}}:R===totalRow-1?{fgColor:{rgb:'E2F0D9'}}:{}};}
+    ws['!rows']=Array.from({length:rows.length},(_,i)=>({hpx:i===0?34:22}));const wb=XLSX.utils.book_new();wb.Workbook={Views:[{RTL:true}]};XLSX.utils.book_append_sheet(wb,ws,'شیفت‌های پیشنهادی');XLSX.writeFile(wb,`شیفتهای پیشنهادی ${monthNames[month-1]} ${year} - .xlsx`);toast(`فایل ماه ${monthNames[month-1]} ${year} آماده شد.`,'success');
+  }catch(err){console.error(err);toast('خطا در ساخت فایل Excel: '+err.message,'error');}finally{showLoading(false);}
+}
+
+function exportToExcel() {
+  if(state.currentUser?.role==='department_manager'){const deptId=state.currentUser.departmentId||'';return exportComprehensiveMonthWorkbook(deptId,departmentName(deptId));}
+  if(['admin','senior_manager'].includes(state.currentUser?.role))return exportComprehensiveMonthWorkbook('','همه بخش‌ها');
+  toast('شما دسترسی لازم برای این خروجی را ندارید.','error');
+}
+
+// راه‌اندازی
+(async function boot() {
+  // بررسی اینکه firebaseConfig پر شده باشد
+  if (firebaseConfig.apiKey === 'YOUR_API_KEY' || !firebaseConfig.projectId || firebaseConfig.projectId === 'YOUR_PROJECT_ID') {
+    document.getElementById('loadingOverlay').innerHTML = `
+      <div class="text-center max-w-md px-6">
+        <div class="text-4xl mb-3">⚙️</div>
+        <p class="font-black text-badesaba-main text-lg mb-2">تنظیمات Firebase لازم است</p>
+        <p class="text-xs text-gray-600 leading-relaxed text-right">
+          ۱. برو به <a href="https://console.firebase.google.com" target="_blank" class="text-blue-600 underline">console.firebase.google.com</a><br>
+          ۲. پروژه بساز → Firestore Database → Create database (حالت Test mode)<br>
+          ۳. Project settings → Your apps → Web → کد firebaseConfig را کپی کن<br>
+          ۴. داخل فایل index.html بخش firebaseConfig را با اطلاعات خودت جایگزین کن<br>
+          ۵. فایل را دوباره روی GitHub آپلود کن
+        </p>
+      </div>`;
+    return;
+  }
+
+  try {
+    auth.onAuthStateChanged(async authUser => {
+      try {
+        if (!authUser) { state.currentUser=null; state.ready=false; await initUI(); return; }
+        // ورود تعاملی خودش وضعیت را مدیریت می‌کند تا رویداد Auth، مودال اجباری را دور نزند.
+        if (state.loginFlowActive) return;
+        const nationalId=(authUser.email||'').split('@')[0];
+        await ensureAdminAfterLogin({user:authUser});
+        await Promise.all([loadUsers(), loadSettings(), loadHolidays(), loadShifts(), loadDepartments()]);
+        state.ready=true;
+        const user=state.users.find(x=>x.nationalId===nationalId);
+        if (!user) { await auth.signOut(); showAlert('حساب Auth پروفایل متناظر ندارد.'); return; }
+        if (user.uid && user.uid!==authUser.uid) { await auth.signOut(); showAlert('این حساب احراز هویت با پروفایل متناظر مطابقت ندارد.'); return; }
+        if (!user.uid) { user.uid=authUser.uid; await saveUser(user); }
+        state.currentUser=user;
+        if (user.mustChangePassword===true) { openForceChangePasswordModal(); showLoading(false); return; }
+        await initUI();
+      } catch(err) { console.error(err); await auth.signOut(); state.currentUser=null; state.ready=false; await initUI(); }
+    });
+  } catch (err) {
+    console.error(err);
+    document.getElementById('loadingOverlay').innerHTML = `
+      <div class="text-center max-w-md px-4">
+        <p class="font-bold text-red-700 mb-2">خطا در اتصال به Firebase</p>
+        <p class="text-xs text-gray-600">${err.message}</p>
+        <p class="text-[10px] text-gray-400 mt-3">مطمئن شو firebaseConfig درست است و Firestore در حالت Test mode ساخته شده.</p>
+      </div>`;
+  }
+})();
+</script>
+</body>
+</html>
